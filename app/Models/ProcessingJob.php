@@ -12,6 +12,7 @@ class ProcessingJob extends Model
     public $fillable = [
         'file_path',
         'file_hash',
+        'job_type', // can be transcoding, reading metadata, etc.
         'job_status',
     ];
 }

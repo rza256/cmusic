@@ -15,8 +15,14 @@
             <b>0 / {{ number_format($files->count()) }}</b> files processed<span class="sub"></span><br>
         </div>
         <div class="col-1">
-            <button>run jobs</button>
-        </div>
+	    <a href="{{ route('cmusic.forceMiss') }}">
+		<button>recheck folders</button>
+	    </a>
+
+	    <a href="{{ route('cmusic.jobs.processAll') }}">
+		<button>run jobs for all</button>
+	    </a>
+	</div>
         <div class="col-1"></div>
     </div><br>
 
@@ -27,6 +33,7 @@
             <th>status</th>
             <th>file hash</th>
         </tr>
+	
         <tr>
             <td>aa</td>
             <td>aa</td>
@@ -41,11 +48,13 @@
             <th>file size</th>
         </tr>
 
-        @foreach($files as $file)
+        @forelse($files as $file)
             <tr>
                 <td>{{ $file->filePath }}</td>
                 <td style="color: {{ gradientTarget("#000000", $file->fileSize) }}">{{ formatBytes($file->fileSize) }}</td>
             </tr>
-        @endforeach
+        @empty
+	    There is no files being tracked.
+	@endforelse
     </table>
 @endsection

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string("file_path");
             $table->string("job_status");
+            $table->integer("job_type"); // enum
             $table->string("file_hash");
             $table->timestamps();
         });

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\ProcessingJob;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use App\Enums\JobType;
 
 class ProcessAudio implements ShouldQueue
 {
@@ -15,7 +16,7 @@ class ProcessAudio implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(string $fileName)
+    public function __construct(string $fileName, JobType $jobType)
     {
         // Generally, this will most likely
         // change a lot (job status)
@@ -28,6 +29,7 @@ class ProcessAudio implements ShouldQueue
         ProcessingJob::create([
             'file_path' => $fileName,
             'job_status' => 0,
+            'job_type' => $jobType,
             'file_hash' => null,
         ]);
 

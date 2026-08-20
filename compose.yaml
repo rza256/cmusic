@@ -19,7 +19,7 @@ services:
             IGNITION_LOCAL_SITES_PATH: '${PWD}'
         volumes:
             - '.:/var/www/html'
-            - '/mnt/f/Soulseek Downloads/:/mnt/soulseek'
+            - '/mnt/:/mnt/soulseek'
         networks:
             - sail
         depends_on:
