@@ -1,3 +1,4 @@
+@php ($tabs = ["home",  "jobs"])
 <!DOCTYPE html>
 <html>
     <head>
@@ -38,15 +39,11 @@
         </div>
         <div class="pages">
             <div class="options">
-                <div class="option selected">
-                    <a href="#">albums</a>
-                </div>
-                <div class="option">
-                    <a href="#">stats</a>
-                </div>
-                <div class="option">
-                    <a href="#">settings</a>
-                </div>
+                @foreach($tabs as $tab)
+                    <div class="option @if ($sTab == $tab) selected @endif">
+                        <a href="{{ route('cmusic.' . $tab) }}">{{ $tab }}</a>
+                    </div>
+                @endforeach
             </div>
         </div>
         @yield('content')

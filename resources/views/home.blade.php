@@ -1,4 +1,6 @@
-@extends('base')
+@extends('base', [
+    'sTab' => 'home'
+])
 @section('title', 'home')
 @section('content')
     Hello
