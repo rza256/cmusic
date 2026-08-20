@@ -17,6 +17,30 @@ h1,h2,h3,h4,h5 {
     display: inline-block;
 }
 
+.flex {
+    display: flex;
+}
+
+table {
+    width: 100%;
+}
+
+.col-1 {
+    flex: 1;
+}
+
+td {
+    border: none;
+}
+
+th {
+    text-align: left;
+}
+
+tr:nth-child(even) {
+    background-color: #f3f3f3;
+}
+
 .header-top {
     border-bottom: 1px solid #d3d3d3;
     padding-bottom: 5px;

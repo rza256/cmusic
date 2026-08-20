@@ -8,15 +8,16 @@ use Illuminate\Support\Collection;
 
 class JobsController extends Controller {
     public function home(Request $request) {
-        $rt = Cache::remember('last_checked', now()->addMinutes(10), function() {
+        $rt = Cache::remember('last_checked_d', now()->addMinutes(10), function() {
             return now();    
         });
 
-        $files = Cache::remember('music_files', now()->addMinutes(10), function () {
+        $files = Cache::remember('music_files_d', now()->addMinutes(10), function () {
             return collect(Storage::disk('music')->allFiles())
                 ->map(function ($file) {
                     return (object) [
                         'filePath' => $file,
+                        // 'fileHash' => hash_file("xxh3", Storage::disk('music')->path($file)),
                         'fileSize' => Storage::disk('music')->size($file),
                     ];
                 });

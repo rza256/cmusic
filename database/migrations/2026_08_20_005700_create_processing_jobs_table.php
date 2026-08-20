@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('processing_jobs', function (Blueprint $table) {
             $table->id();
+            $table->string("file_path");
+            $table->string("job_status");
+            $table->string("file_hash");
             $table->timestamps();
         });
     }
