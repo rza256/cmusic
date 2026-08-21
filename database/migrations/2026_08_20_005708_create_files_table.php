@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('files', function (Blueprint $table) {
             $table->id();
+            $table->bigInteger('file_size');
             $table->string('file_path');
             $table->string('file_hash')->nullable(); // for in progress ones
             $table->json('metadata');

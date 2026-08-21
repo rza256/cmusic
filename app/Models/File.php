@@ -9,7 +9,7 @@ class File extends Model
     public $fillable = [
         'file_path',
         'file_size',
-        'hash',
+        'file_hash',
         'metadata',
     ];
 }
