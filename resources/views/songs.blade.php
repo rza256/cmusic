@@ -6,6 +6,7 @@
     <table>
         <tr>
             <th>cover</th>
+            <th>track</th>
             <th>album</th>
             <th>title</th>
             <th>artist</th>
@@ -21,11 +22,12 @@
                             <img style="width: 16px; height:16px;" src="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
                         </a>
                     </td>
+                    <td>{!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}</td>
                     <td>{!! $file->metadata['album'] ?? "<i>unknown</i>" !!}</td>
                     <td>{{ $file->metadata['title'] ?? $file->metadata['filename'] }}</td>
                     <td>{!! $file->metadata['artist'] ?? "<i>unknown</i>" !!}</td>
                     <td>
-                        <a href="" title="play">pl</a> 
+                        <a href="#" class="playSong_js" data-id="{{ $file->id }}" title="play">pl</a> 
                         <a href="" title="add queue">aq</a> 
                         <a href="" title="view album">va</a>
                         <a href="{{ route('cmusic.meta.file', ['id' => $file->id]) }}" title="get raw">rw</a>

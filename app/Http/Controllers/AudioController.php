@@ -24,6 +24,12 @@ class AudioController extends Controller {
         return response()->file(Storage::disk('music')->path($file->file_path));
     }
 
+    public function json(Request $request, int $id)
+    {
+        $file = File::where('id', $id)->firstOrFail();
+        return response()->json($file);
+    }
+
     public function albumCover(Request $request, int $id)
     {
         $fileM = File::where('id', $id)->firstOrFail();
