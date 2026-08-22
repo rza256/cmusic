@@ -12,4 +12,11 @@ class File extends Model
         'file_hash',
         'metadata',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'metadata' => 'array',
+        ];
+    }
 }

@@ -1,4 +1,4 @@
-@php ($tabs = ["home",  "jobs"])
+@php ($tabs = ["home", "songs", "queue", "jobs"])
 <!DOCTYPE html>
 <html>
     <head>
@@ -44,6 +44,8 @@
                         <a href="{{ route('cmusic.' . $tab) }}">{{ $tab }}</a>
                     </div>
                 @endforeach
+
+                @yield('options')
             </div>
         </div>
         @yield('content')

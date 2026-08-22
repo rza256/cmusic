@@ -17,6 +17,16 @@ h1,h2,h3,h4,h5 {
     display: inline-block;
 }
 
+.optr {
+    position: relative;
+    bottom: 5px;
+}
+
+.selected
+{
+    color: black;
+}
+
 .flex {
     display: flex;
 }
@@ -84,7 +94,7 @@ tr:nth-child(even) {
     margin-top: 5px;
     margin-bottom: 15px;
     a {
-        color: black;
+        color: #333;
     }
 
     .option {
@@ -107,4 +117,8 @@ tr:nth-child(even) {
     }
 
     border-bottom: 2px solid #d3d3d3;
+}
+
+.selected a {
+    color: black;
 }

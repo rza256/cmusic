@@ -67,7 +67,7 @@ class ProcessAudio implements ShouldQueue
         $audio = Audio::read(Storage::disk('music')->path($this->fileName));
         $metadata = $audio->getMetadata();
         $metadata = $metadata->toArray(); // meta
-        $raw_all = $audio->getRawAll(); // 
+        $raw_all = $audio->getRaw(); // 
         
         $full = array_merge($metadata, $raw_all);
 
@@ -75,7 +75,7 @@ class ProcessAudio implements ShouldQueue
             'file_path' => $this->fileName,
             'file_size' => Storage::disk('music')->size($this->fileName),
             'file_hash' => hash_file("xxh3", Storage::disk('music')->path($this->fileName)),
-            'metadata' => json_encode($full),
+            'metadata' => $full,
         ]);
 
         $job->update([

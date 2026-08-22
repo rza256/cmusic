@@ -54,7 +54,7 @@
                 <td style="color: {{ gradientTarget("#000000", $file->fileSize) }}">{{ formatBytes($file->fileSize) }}</td>
             </tr>
         @empty
-	    There is no files being tracked.
-	@endforelse
+            There is no files being tracked.
+        @endforelse
     </table>
 @endsection
