@@ -55,6 +55,28 @@ td {
     border: none;
 }
 
+.cover {
+    width: 16px;
+}
+
+tr.ignore-color {
+    background-color: #d3d3d3 !important;
+}
+
+.track,
+.album,
+.title,
+.artist,
+.actions,
+.hash,
+.size,
+.cover {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 15vw;
+}
+
 th {
     text-align: left;
 }
