@@ -10,6 +10,9 @@ class File extends Model
         'file_path',
         'file_size',
         'file_hash',
+        'album',
+        'title',
+        'artist',
         'metadata',
     ];
 

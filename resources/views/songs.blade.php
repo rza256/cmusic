@@ -22,10 +22,22 @@
                             <img style="width: 16px; height:16px;" src="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
                         </a>
                     </td>
-                    <td>{!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}</td>
-                    <td>{!! $file->metadata['album'] ?? "<i>unknown</i>" !!}</td>
-                    <td>{{ $file->metadata['title'] ?? $file->metadata['filename'] }}</td>
-                    <td>{!! $file->metadata['artist'] ?? "<i>unknown</i>" !!}</td>
+                    <td>
+                        {!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}
+                    </td>
+                    <td>
+                        <a href="{{ route('cmusic.songs', ['album' => $file->album]) }}">
+                            {!! $file->metadata['album'] ?? "<i>unknown</i>" !!}
+                        </a>
+                    </td>
+                    <td>
+                        {{ $file->metadata['title'] ?? $file->metadata['filename'] }}
+                    </td>
+                    <td>
+                        <a href="{{ route('cmusic.songs', ['artist' => $file->artist]) }}">
+                            {!! $file->metadata['artist'] ?? "<i>unknown</i>" !!}
+                        </a>
+                    </td>
                     <td>
                         <a href="#" class="playSong_js" data-id="{{ $file->id }}" title="play">pl</a> 
                         <a href="" title="add queue">aq</a> 

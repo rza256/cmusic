@@ -15,6 +15,9 @@ return new class extends Migration
             $table->id();
             $table->bigInteger('file_size');
             $table->string('file_path');
+            $table->string('title'); // easier to sort w/ sql
+            $table->string('album');
+            $table->string('artist');
             $table->string('file_hash')->nullable(); // for in progress ones
             $table->json('metadata');
             $table->timestamps();

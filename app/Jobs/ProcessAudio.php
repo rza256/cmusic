@@ -46,6 +46,9 @@ class ProcessAudio implements ShouldQueue
             'file_path' => $this->fileName,
             'job_status' => $jobExists ? -1 : 0,
             'job_type' => $this->jobType,
+            'album' => '',
+            'title' => '',
+            'artist' => '',
             'file_hash' => null,
         ]);
 
@@ -72,6 +75,10 @@ class ProcessAudio implements ShouldQueue
         $full = array_merge($metadata, $raw_all);
 
         $file = File::create([
+            'file_path' => $this->fileName,
+            'album' => $full['album'] ?? '',
+            'title' => $full['title'] ?? '',
+            'artist' => $full['artist'] ?? '',
             'file_path' => $this->fileName,
             'file_size' => Storage::disk('music')->size($this->fileName),
             'file_hash' => hash_file("xxh3", Storage::disk('music')->path($this->fileName)),

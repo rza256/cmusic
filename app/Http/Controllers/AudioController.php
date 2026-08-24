@@ -11,7 +11,14 @@ use App\Enums\JobType;
 
 class AudioController extends Controller {
     public function home(Request $request) {
-        $songs = File::orderBy('id', 'desc')->paginate(100);
+        $songs = File::orderBy('album', 'desc')
+            ->orderBy('metadata->track_number', 'asc');
+
+        // does the user want only a specific album / artist
+        !empty($request->input('album')) ? $songs->where('album', $request->input('album')) : '';
+        !empty($request->input('artist')) ? $songs->where('artist', $request->input('artist')) : '';
+        $songs = $songs->paginate(100);
+
 
         return view('songs', [
             'songs' => $songs

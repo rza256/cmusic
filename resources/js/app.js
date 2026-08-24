@@ -22,7 +22,7 @@ function playSong(meta, url) {
 
     audio.src = url;
     audio.load();
-    // audio.play();
+    audio.play();
 
     $('.artist_js').html(meta.metadata.artist ?? "<i>unknown</i>");
     $('.title_js').html(meta.metadata.title ?? "<i>unknown</i>");
