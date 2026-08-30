@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use App\Models\File;
+use App\Models\Transcode;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use App\Jobs\ProcessAudio;
@@ -25,9 +26,23 @@ class AudioController extends Controller {
         ]);
     }
 
+    public function transcodes(Request $request)
+    {
+        $tc = Transcode::orderBy('id', 'desc')->paginate(20);
+
+        return view('transcodes', [
+            'transcodes' => $tc
+        ]);
+    }
+
     public function file(Request $request, int $id)
     {
         $file = File::where('id', $id)->firstOrFail();
+        if ($file->transcode)
+        {
+            return response()->file(Storage::disk('transcodes')->path(pathinfo($file->file_path, PATHINFO_FILENAME) . ".ogg"));
+        }
+
         return response()->file(Storage::disk('music')->path($file->file_path));
     }
 
@@ -85,5 +100,7 @@ class AudioController extends Controller {
             }
             // echo $file . "<br>";
         }
+
+        return response()->file(Storage::disk('public')->path('logo.png'));
     }
 }

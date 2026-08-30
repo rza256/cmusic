@@ -6,9 +6,12 @@ Route::get('/', [\App\Http\Controllers\StatsController::class, 'home'])->name("c
 Route::get('/songs', [\App\Http\Controllers\AudioController::class, 'home'])->name("cmusic.songs");
 Route::get('/jobs', [\App\Http\Controllers\JobsController::class, 'home'])->name("cmusic.jobs");
 Route::get('/queue', [\App\Http\Controllers\AudioController::class, 'queue'])->name("cmusic.queue");
+Route::get('/transcodes', [\App\Http\Controllers\AudioController::class, 'transcodes'])->name("cmusic.transcodes");
 Route::get('/cache_miss', [\App\Http\Controllers\JobsController::class, 'forceMiss'])->name("cmusic.forceMiss");
 Route::prefix('/jobs')->group(function() {
     Route::get('/force_all', [\App\Http\Controllers\JobsController::class, 'processAll'])->name("cmusic.jobs.processAll");
+    Route::get('/transcode/{id}', [\App\Http\Controllers\JobsController::class, 'transcode'])->name("cmusic.jobs.transcode");
+    Route::get('/transcode/ab/{id}', [\App\Http\Controllers\JobsController::class, 'transcodeAlbum'])->name("cmusic.jobs.transcodeAlbum");
 });
 
 Route::prefix('/meta')->group(function() {

@@ -22,4 +22,9 @@ class File extends Model
             'metadata' => 'array',
         ];
     }
+
+    public function transcode()
+    {
+        return $this->hasOne(Transcode::class, 'file_id', 'id');
+    }
 }

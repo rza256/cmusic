@@ -15,4 +15,18 @@ class ProcessingJob extends Model
         'job_type', // can be transcoding, reading metadata, etc.
         'job_status',
     ];
+
+    public function getColor() {
+        if ($this->job_status == 0)
+        {
+            return "white";
+        }
+        elseif ($this->job_status < 0)
+        {
+            return "red";
+        }
+        else {
+            return "green";
+        }
+    }
 }

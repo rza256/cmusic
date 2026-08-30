@@ -25,3 +25,7 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+
+/storage/app/music/*
+!/storage/app/music/hello.txt

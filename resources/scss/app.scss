@@ -22,6 +22,27 @@ h1,h2,h3,h4,h5 {
     bottom: 5px;
 }
 
+#volume, #seek {
+    vertical-align: middle;
+    width: 97%;
+}
+
+.col-2 {
+    flex: 2;
+}
+
+.col-3 {
+    flex: 3;
+}
+
+.col-4 {
+    flex: 4;
+}
+
+.col-5 {
+    flex: 5;
+}
+
 .selected
 {
     color: black;
@@ -113,7 +134,7 @@ tr:nth-child(even) {
 }
 
 .sub {
-    color: #777;
+    color: #777 !important;
 }
 
 .fr {

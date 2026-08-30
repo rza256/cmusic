@@ -1,4 +1,4 @@
-@php ($tabs = ["home", "songs", "queue", "jobs"])
+@php ($tabs = ["home", "songs", "queue", "jobs", "transcodes"])
 <!DOCTYPE html>
 <html>
     <head>
@@ -24,13 +24,27 @@
                                 <option value="">author</option>
                                 <option value="">album</option>
                             </select>
-                            <input type="submit" value="search">
                         </form>
                     </div>
                 </div>
                 <div class="header-low sub">
                     <div>
-                        <span class="artist_js">unknown artist</span> - <span class="title_js">unknown title</span> (<span class="timestamp_js">0:24</span>)
+                        <div class="flex">
+                            <div class="col-3">
+                                <span class="artist_js">unknown artist</span> - <span class="title_js">unknown title</span> (<span class="timestamp_js">0:00</span>)
+
+                                <button title="play" class="play_js">pl</button>
+                                <button title="pause" class="pause_js">pa</button>
+                                <button title="repeat" class="repeat_js">rp</button>
+                                <button title="shuffle" class="shuffle_js">sf</button>
+                            </div>
+                            <div class="col-5">
+                                <input type="range" id="seek" name="seek" min="0" max="0" />
+                            </div>
+                            <div class="col-1">
+                                <input type="range" id="volume" name="volume" min="0" max="100" />
+                            </div>
+                        </div>
 
                         <audio controls class="audio_js" style="display:none;">
                             <source src="">
