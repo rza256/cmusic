@@ -1,10 +1,19 @@
 let currentSong = -1;
+let pageStates = {};
 
 // this is really shitty but for now it should work
 // fine when traversing different pages. SPA todo
 $().ready(function() {
+    const audio = $('.audio_js')[0];
+    const seek = $('#seek');
+    const volume = $('#volume');
+
     const lastTs = localStorage.getItem("lastTimestamp");
     const lastSong = localStorage.getItem("lastSong");
+    const lastGain = localStorage.getItem("lastGain");
+
+    volume.val(lastGain);
+    audio.volume = lastGain / 100;
 
     currentSong = lastSong;
     let id = lastSong;
@@ -25,25 +34,95 @@ $().ready(function() {
             audio.play();
         }
     });
-})
 
-$('.playSong_js').on('click', function() {
-    let id = $(this).data('id');
-    currentSong = id;
-    let url = 'http://localhost/meta/file/' + id;
-    let json = 'http://localhost/meta/json/' + id;
+    $('.dynamic').each(function(i, obj) {
+        const type = $(this).data('name');
+        let url = 'http://localhost/d/' + type
 
-    // get metadata
-    $.ajax({
-        url: json,
-        type: 'GET',
-        dataType: 'json', // added data type
-        success: function(res) {
-            console.log(res);
-            playSong(res, url, id);
+        loadDynamic(url, type)
+
+        console.log(pageStates)
+    });
+
+    // https://stackoverflow.com/questions/17384218/jquery-input-event
+    $('.searchQueryJs').on('propertychange input', function (e) {
+        var valueChanged = false;
+
+        if (e.type=='propertychange') {
+            valueChanged = e.originalEvent.propertyName=='value';
+        } else {
+            valueChanged = true;
+        }
+        if (valueChanged) {
+            let q = ($(this).val());
+            let searchType = ($('.searchTypeJs').val());
+
+            let url = new URL('http://localhost/d/songs')
+            url.searchParams.append('q', q);
+            url.searchParams.append('t', searchType);
+
+            loadDynamic(url, 'songs')
         }
     });
-});
+})
+
+function loadDynamic(url, type) {
+    $.ajax({
+        url: url,
+        type: 'GET',
+        dataType: 'html',
+        success: function(res) {
+            // console.log(res);
+            // grab pagination (if it exists) and put
+            // it in the thing
+
+            $('.dynamic[data-name="' + type + '"]').html(res);
+
+            $('.pagination-dynamic').html('');
+            let pag = $('.pagination-default').detach();
+            $('.pagination-dynamic').append(pag);
+
+            $('.playSong_js').on('click', function() {
+                //alert("Hi")
+
+                let id = $(this).data('id');
+                currentSong = id;
+                let url = 'http://localhost/meta/file/' + id;
+                let json = 'http://localhost/meta/json/' + id;
+
+                // get metadata
+                $.ajax({
+                    url: json,
+                    type: 'GET',
+                    dataType: 'json', // added data type
+                    success: function(res) {
+                        console.log(res);
+                        playSong(res, url, id);
+                    }
+                });
+            });
+
+            $('.passthrough').each(function(i, obj) {
+                $(this).on('click', function(event) {
+                    event.preventDefault();
+
+                    let href = ($(this).attr('href'));
+
+                    // check if page
+                    let url = new URL(href);
+                    let searchParams = new URLSearchParams(url.search)
+                
+                    console.log(searchParams.has('page')) 
+                    console.log(searchParams) 
+
+                    url.pathname = '/d/songs'
+
+                    loadDynamic(url, 'songs');
+                })
+            });
+        }
+    });
+}
 
 String.prototype.toHHMMSS = function () {
     var sec_num = parseInt(this, 10); // don't forget the second param
@@ -125,6 +204,7 @@ audio.addEventListener('ended', () => {
 });
 
 $('#volume').on('input', function () {
+    localStorage.setItem("lastGain", $(this).val());
     $('.audio_js')[0].volume = $(this).val() / 100;
 });
 
@@ -137,8 +217,3 @@ $('.pause_js').on('click', function() {
     let audio = $('.audio_js')[0];
     audio.pause();
 });
-
-$('.filter_js').on('click', function() {
-    let type = $(this).data('type');
-    alert(type);
-})

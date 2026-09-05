@@ -16,13 +16,14 @@
                 <div class="header-top">
                     <h1>@yield('title') : cmusic</h1>
                     <div class="fr">
-                        <form>
-                            <input type="text">
-                            <select>
-                                <option value="">all</option>
-                                <option value="">title</option>
-                                <option value="">author</option>
-                                <option value="">album</option>
+                        <form class="searchJs">
+                            <input type="text" class="searchQueryJs" name="query">
+                            <select class="searchTypeJs" name="type">
+                                <option value="all">all (metadata search)</option>
+                                <option value="filename">filename</option>
+                                <option value="title">title</option>
+                                <option value="author">author</option>
+                                <option value="album">album</option>
                             </select>
                         </form>
                     </div>

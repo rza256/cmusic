@@ -20,6 +20,10 @@ Route::prefix('/meta')->group(function() {
     Route::get('/json/{id}', [\App\Http\Controllers\AudioController::class, 'json'])->name("cmusic.meta.json");
 });
 
+Route::prefix('/d')->group(function() {
+    Route::get('/{type}', [\App\Http\Controllers\AudioController::class, 'dynamic'])->name("cmusic.dynamic.api");
+});
+
 Route::prefix('/debug')->group(function() {
     Route::get('/test_audio', [\App\Http\Controllers\DebugController::class, 'testAudio'])->name("cmusic.jobs.processAll");
 });
