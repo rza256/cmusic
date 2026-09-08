@@ -37,7 +37,7 @@ $c = []; // buffer of albums
             @endphp
 
             @if ($file->transcode)
-                <tr data-id="{{ $file->id }}">
+                <tr data-id="{{ $file->id }}" class="songRow">
                     <td class="cover">
                         <a href="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
                             <img style="width: 16px; height:16px;" src="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
@@ -71,7 +71,7 @@ $c = []; // buffer of albums
                     <td class="size" style="color: {{ gradientTarget("#000000", $file->transcode->file_size) }}">{{ formatBytes($file->transcode->file_size) }} [tc]</td>
                 </tr>
             @else
-                <tr data-id="{{ $file->id }}">
+                <tr data-id="{{ $file->id }}" class="songRow">
                     <td class="cover">
                         <a href="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
                             <img style="width: 16px; height:16px;" src="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">

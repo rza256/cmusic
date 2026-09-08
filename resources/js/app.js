@@ -1,5 +1,6 @@
 let currentSong = -1;
 let pageStates = {};
+let playStatus = "sequential";
 
 // this is really shitty but for now it should work
 // fine when traversing different pages. SPA todo
@@ -8,9 +9,19 @@ $().ready(function() {
     const seek = $('#seek');
     const volume = $('#volume');
 
+    // sound related
     const lastTs = localStorage.getItem("lastTimestamp");
     const lastSong = localStorage.getItem("lastSong");
     const lastGain = localStorage.getItem("lastGain");
+
+    // search related
+    const searchTerm = localStorage.getItem("searchTerm");
+    const searchType = localStorage.getItem("searchType");
+    const playOrder = localStorage.getItem("playOrder");
+
+    if (playOrder === undefined) {
+        playStatus = "sequential";
+    }
 
     volume.val(lastGain);
     audio.volume = lastGain / 100;
@@ -35,14 +46,29 @@ $().ready(function() {
         }
     });
 
-    $('.dynamic').each(function(i, obj) {
-        const type = $(this).data('name');
-        let url = 'http://localhost/d/' + type
+    // set & trigger
+    console.log(playOrder)
+    $('.playSequenceJs').val(playOrder).trigger("input");
+    $('.searchTypeJs').val(searchType).trigger("input");
+    $('.searchQueryJs').val(searchTerm).trigger("input");
 
-        loadDynamic(url, type)
+    $('.dynamic').each(function(i, obj) {
+        searchDynamic()
 
         console.log(pageStates)
     });
+    
+    $('.playSequenceJs').on('input', function(e) {
+        console.log(e);
+        playStatus = $(this).val();
+        localStorage.setItem("playOrder", playStatus);
+    })
+
+    $('.searchTypeJs').on('input', function(e) {
+        console.log('search type changed');
+        localStorage.setItem("searchType", $(this).val());
+        searchDynamic()
+    })
 
     // https://stackoverflow.com/questions/17384218/jquery-input-event
     $('.searchQueryJs').on('propertychange input', function (e) {
@@ -54,17 +80,22 @@ $().ready(function() {
             valueChanged = true;
         }
         if (valueChanged) {
-            let q = ($(this).val());
-            let searchType = ($('.searchTypeJs').val());
-
-            let url = new URL('http://localhost/d/songs')
-            url.searchParams.append('q', q);
-            url.searchParams.append('t', searchType);
-
-            loadDynamic(url, 'songs')
+            localStorage.setItem("searchTerm", $(this).val());
+            searchDynamic()
         }
     });
 })
+
+function searchDynamic() {
+    let q = ($('.searchQueryJs').val());
+    let searchType = ($('.searchTypeJs').val());
+
+    let url = new URL('http://localhost/d/songs')
+    url.searchParams.append('q', q);
+    url.searchParams.append('t', searchType);
+
+    loadDynamic(url, 'songs')
+}
 
 function loadDynamic(url, type) {
     $.ajax({
@@ -139,6 +170,13 @@ String.prototype.toHHMMSS = function () {
 function playSong(meta, url, id) {
     console.log(meta);
 
+    $('tr').each(function(i, obj) {
+        $(this).removeClass('playing');
+    });
+
+    let row = $('tr[data-id="' + id + '"]')
+    $(row).addClass('playing');
+
     let audio = $('.audio_js')[0];
 
     audio.src = url;
@@ -183,7 +221,32 @@ audio.addEventListener('ended', () => {
 
     console.log("song ended")
     console.log(currentSong);
-    currentSong = Number(currentSong) + 1;
+
+    // handle playStatus
+    if (playStatus == "sequential") {
+        let trNext = $('.songRow[data-id="' + currentSong + '"]').next()
+        console.log('---------------')
+        console.log(currentSong)
+        console.log('.songRow[data-id="' + currentSong + '"]', trNext)
+        console.log('.songRow[data-id="' + currentSong + '"]', $('.songRow[data-id="' + currentSong + '"]'))
+        console.log($(trNext))
+        console.log('---------------')
+        currentSong = $(trNext).data('id');
+        // alert(currentSong)
+    } else if (playStatus == "sequentialUp") {
+        let trNext = $('.songRow[data-id="' + currentSong + '"]').prev()
+        console.log('---------------')
+        console.log(currentSong)
+        console.log('.songRow[data-id="' + currentSong + '"]', trNext)
+        console.log('.songRow[data-id="' + currentSong + '"]', $('.songRow[data-id="' + currentSong + '"]'))
+        console.log($(trNext))
+        console.log('---------------')
+        currentSong = $(trNext).data('id');
+        // alert(currentSong)
+    } else {
+        currentSong = Number(currentSong) + 1;
+    }
+    
     let id = currentSong;
     let url = 'http://localhost/meta/file/' + id;
     let json = 'http://localhost/meta/json/' + id;

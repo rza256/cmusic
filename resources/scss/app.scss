@@ -107,6 +107,10 @@ th {
     text-align: left;
 }
 
+tr.playing {
+    background-color: #ffcaca !important;
+}
+
 tr:nth-child(even) {
     background-color: #f3f3f3;
 }

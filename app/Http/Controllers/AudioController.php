@@ -70,10 +70,11 @@ class AudioController extends Controller {
                 };
             }
 
+            if (!empty($request->input('fileType')) && $request->input('fileType') == 'transcodes')
+            {
+                $songs = $songs->whereHas('transcode');
+            }
             $songs = $songs->paginate(100);
-            $songs = $songs->filter(function (File $file) {
-                return $file->transcode()->exists();
-            });
 
             $data = [
                 'songs' => $songs,

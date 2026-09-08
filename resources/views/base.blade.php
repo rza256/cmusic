@@ -16,7 +16,15 @@
                 <div class="header-top">
                     <h1>@yield('title') : cmusic</h1>
                     <div class="fr">
-                        <form class="searchJs">
+                        <select class="playSequenceJs" name="type">
+                            <option value="file">by file id</option>
+                            <option value="sequential">sequential (desc)</option>
+                            <option value="sequentialUp">sequential (asc)</option>
+                            <option value="track">by track #</option>
+                            <option value="shuffle">shuffle</option>
+                            <option value="queue">queue</option>
+                        </select>
+                        <form class="searchJs ib">
                             <input type="text" class="searchQueryJs" name="query">
                             <select class="searchTypeJs" name="type">
                                 <option value="all">all (metadata search)</option>

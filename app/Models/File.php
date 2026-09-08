@@ -20,6 +20,7 @@ class File extends Model
     {
         return [
             'metadata' => 'array',
+            'previous_hashes' => 'array',
         ];
     }
 
