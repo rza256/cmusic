@@ -108,6 +108,7 @@ function loadDynamic(url, type) {
             // it in the thing
 
             $('.dynamic[data-name="' + type + '"]').html(res);
+            $('.songRow[data-id="' + currentSong + '"]').addClass('playing');
 
             $('.pagination-dynamic').html('');
             let pag = $('.pagination-default').detach();
@@ -168,30 +169,36 @@ String.prototype.toHHMMSS = function () {
 }
 
 function playSong(meta, url, id) {
-    console.log(meta);
+    currentSong = id;
 
-    $('tr').each(function(i, obj) {
-        $(this).removeClass('playing');
-    });
+    $('.songRow').removeClass('playing');
 
-    let row = $('tr[data-id="' + id + '"]')
-    $(row).addClass('playing');
+    const row = $('.songRow[data-id="' + id + '"]');
+    row.addClass('playing');
 
-    let audio = $('.audio_js')[0];
-
+    const audio = $('.audio_js')[0];
     audio.src = url;
     audio.load();
     audio.play();
 
-    $('#seek').attr('max', Math.floor(meta.metadata.duration_seconds))
+    $('#seek').attr('max', Math.floor(meta.metadata.duration_seconds));
 
     $('.artist_js').html(meta.metadata.artist ?? "<i>unknown</i>");
     $('.title_js').html(meta.metadata.title ?? "<i>unknown</i>");
 
-    let tr = $('tr[data-id="' + id + '"]');
+    $('.logo').attr('src', 'http://localhost/meta/cover/' + id);
 
-    console.log($('.logo'));
-    $('.logo').attr('src', 'http://localhost/meta/cover/' + id)
+    if ('mediaSession' in navigator) {
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+        title: meta.metadata.title ?? "unknown title",
+        artist: meta.metadata.artist ?? "unknown artist",
+        album: meta.metadata.album ?? "unknown title",
+        artwork: [
+        { src: 'http://localhost/meta/cover/' + id, sizes: '512x512', type: 'image/png' },
+        ]
+    });
+    }
 }
 
 const audio = $('.audio_js')[0];
@@ -212,6 +219,10 @@ audio.addEventListener('loadedmetadata', () => {
     seek.attr('max', audio.duration);
 });
 
+function getRandomArbitrary(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
 audio.addEventListener('ended', () => {
     // GENERALLY the way the files are processed
     // allows for it to be sequential. but it might not work well for
@@ -224,25 +235,19 @@ audio.addEventListener('ended', () => {
 
     // handle playStatus
     if (playStatus == "sequential") {
-        let trNext = $('.songRow[data-id="' + currentSong + '"]').next()
-        console.log('---------------')
-        console.log(currentSong)
-        console.log('.songRow[data-id="' + currentSong + '"]', trNext)
-        console.log('.songRow[data-id="' + currentSong + '"]', $('.songRow[data-id="' + currentSong + '"]'))
-        console.log($(trNext))
-        console.log('---------------')
-        currentSong = $(trNext).data('id');
-        // alert(currentSong)
+        let trNext = $('.songRow[data-id="' + currentSong + '"]')
+            .nextAll('.songRow')
+            .first();
+
+        currentSong = trNext.data('id');
     } else if (playStatus == "sequentialUp") {
-        let trNext = $('.songRow[data-id="' + currentSong + '"]').prev()
-        console.log('---------------')
-        console.log(currentSong)
-        console.log('.songRow[data-id="' + currentSong + '"]', trNext)
-        console.log('.songRow[data-id="' + currentSong + '"]', $('.songRow[data-id="' + currentSong + '"]'))
-        console.log($(trNext))
-        console.log('---------------')
-        currentSong = $(trNext).data('id');
-        // alert(currentSong)
+        let trPrev = $('.songRow[data-id="' + currentSong + '"]')
+            .prevAll('.songRow')
+            .first();
+
+        currentSong = trPrev.data('id');
+    } else if (playStatus == "shuffle") {
+        currentSong = getRandomArbitrary(0,100);
     } else {
         currentSong = Number(currentSong) + 1;
     }
