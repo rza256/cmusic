@@ -3,6 +3,7 @@
 <html>
     <head>
         <title>{{ strtolower(config('app.name')) }} - @yield('title')</title>
+        <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/4.0.0/jquery.min.js" integrity="sha512-8LENNbXmzI/Gbj+OwXmqR6V4QaUAw0/porPzy1+dQoJqC0JPHedWoe0DDOTL2uHA5XXJyIsPtiMHH86pVlay6A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         @vite(['resources/js/app.js'])
         @vite(['resources/scss/app.scss'])
@@ -41,11 +42,11 @@
                         <div class="flex">
                             <div class="col-3">
                                 <span class="artist_js">unknown artist</span> - <span class="title_js">unknown title</span> (<span class="timestamp_js">0:00</span>)
-
+                                
+                                <button title="previous" class="previous_js"><=</button>
                                 <button title="play" class="play_js">pl</button>
                                 <button title="pause" class="pause_js">pa</button>
-                                <button title="repeat" class="repeat_js">rp</button>
-                                <button title="shuffle" class="shuffle_js">sf</button>
+                                <button title="next" class="next_js">=></button>
                             </div>
                             <div class="col-5">
                                 <input type="range" id="seek" name="seek" min="0" max="0" />

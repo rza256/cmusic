@@ -74,6 +74,7 @@ class AudioController extends Controller {
             {
                 $songs = $songs->whereHas('transcode');
             }
+
             $songs = $songs->paginate(100);
 
             $data = [
@@ -151,11 +152,15 @@ class AudioController extends Controller {
                 if (str_contains($file, $lf))
                 {
                     $ext = pathinfo($file, PATHINFO_EXTENSION);
-                    // echo $ext;
-                    
-                    if(Storage::disk('music')->exists(dirname($fileM->file_path) . "/" . $lf . "." . $ext))
+                    // Ugly
+                    $path = Cache::remember('audio_' . dirname($fileM->file_path), 60 * 60 * 24, function() use($fileM, $lf, $ext) {
+                        return dirname($fileM->file_path) . "/" . $lf . "." . $ext;
+                    });
+
+                    if(Storage::disk('music')->exists($path))
                     {
-                        return response()->file(Storage::disk('music')->path(dirname($fileM->file_path) . "/" . $lf . "." . $ext));
+                        // Really ugly oneliner
+                        return response()->file(Storage::disk('music')->path($path));
                     }
                 }    
             }

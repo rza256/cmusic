@@ -47,7 +47,7 @@ $c = []; // buffer of albums
                         {!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}
                     </td>
                     <td class="album">
-                        <a class="passthrough" href="{{ route('cmusic.songs', ['album' => $file->album]) }}">
+                        <a class="js_searchAlbum" data-term="{{ $file->album }}" href="#">
                             {!! $file->metadata['album'] ?? "<i>unknown</i>" !!}
                         </a>
                     </td>
@@ -55,7 +55,7 @@ $c = []; // buffer of albums
                         {{ $file->metadata['title'] ?? $file->metadata['filename'] }}
                     </td>
                     <td class="artist">
-                        <a class="passthrough" href="{{ route('cmusic.songs', ['artist' => $file->artist]) }}">
+                        <a class="js_searchArtist" data-term="{{ $file->artist }}" href="#">
                             {!! $file->metadata['artist'] ?? "<i>unknown</i>" !!}
                         </a>
                     </td>
@@ -81,7 +81,7 @@ $c = []; // buffer of albums
                         {!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}
                     </td>
                     <td class="album">
-                        <a class="passthrough" href="{{ route('cmusic.songs', ['album' => $file->album]) }}">
+                        <a class="js_searchAlbum" data-term="{{ $file->album }}" href="#">
                             {!! $file->metadata['album'] ?? "<i>unknown</i>" !!}
                         </a>
                     </td>
@@ -89,7 +89,7 @@ $c = []; // buffer of albums
                         {{ $file->metadata['title'] ?? $file->metadata['filename'] }}
                     </td>
                     <td class="artist">
-                        <a class="passthrough" href="{{ route('cmusic.songs', ['artist' => $file->artist]) }}">
+                        <a class="js_searchArtist" data-term="{{ $file->artist }}" href="#">
                             {!! $file->metadata['artist'] ?? "<i>unknown</i>" !!}
                         </a>
                     </td>

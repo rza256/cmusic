@@ -15,6 +15,9 @@ Route::prefix('/jobs')->group(function() {
 });
 
 Route::prefix('/meta')->group(function() {
+    Route::get('/song_count', function() {
+        return response()->json((object)['files' => \App\Models\File::all()->count()]);
+    })->name("cmusic.meta.songs");
     Route::get('/cover/{id}', [\App\Http\Controllers\AudioController::class, 'albumCover'])->name("cmusic.meta.cover");
     Route::get('/file/{id}', [\App\Http\Controllers\AudioController::class, 'file'])->name("cmusic.meta.file");
     Route::get('/json/{id}', [\App\Http\Controllers\AudioController::class, 'json'])->name("cmusic.meta.json");

@@ -1,53 +1,56 @@
+const baseUrl = 'http://localhost'
+
 let currentSong = -1;
 let pageStates = {};
 let playStatus = "sequential";
+let queue = [];
+let queueIndex = 0;
 
-// this is really shitty but for now it should work
-// fine when traversing different pages. SPA todo
 $().ready(function() {
     const audio = $('.audio_js')[0];
     const seek = $('#seek');
     const volume = $('#volume');
 
     // sound related
-    const lastTs = localStorage.getItem("lastTimestamp");
-    const lastSong = localStorage.getItem("lastSong");
-    const lastGain = localStorage.getItem("lastGain");
+    const lastTs = localStorage.getItem("lastTimestamp") ?? 0;
+    const lastSong = localStorage.getItem("lastSong") ?? -1;
+    const lastGain = localStorage.getItem("lastGain") ?? 100;
 
     // search related
-    const searchTerm = localStorage.getItem("searchTerm");
-    const searchType = localStorage.getItem("searchType");
-    const playOrder = localStorage.getItem("playOrder");
+    const searchTerm = localStorage.getItem("searchTerm") ?? "";
+    const searchType = localStorage.getItem("searchType") ?? "sequential";
+    const playOrder = localStorage.getItem("playOrder") ?? "all";
 
-    if (playOrder === undefined) {
-        playStatus = "sequential";
+    // queue
+    const queueOrder = localStorage.getItem("queueOrder");
+    const queueIndex_ = localStorage.getItem("queueIndex");
+
+    //
+    if(queueOrder == null) {
+        queue = []; 
+        localStorage.setItem("queueOrder", JSON.stringify(queue))
+    } else {
+        console.log('found queueOrder' , queueOrder)
+        queue = JSON.parse(queueOrder);
     }
+
+    playStatus = playOrder === null ? "sequential" : playOrder;
+    currentSong = lastSong === null ? -1 : lastSong;
+    queueIndex = queueIndex_ === null ? 0 : Number(queueIndex_);
 
     volume.val(lastGain);
     audio.volume = lastGain / 100;
+    audio.currentTime = lastTs;
 
-    currentSong = lastSong;
-    let id = lastSong;
-    let url = 'http://localhost/meta/file/' + id;
-    let json = 'http://localhost/meta/json/' + id;
-
-    // get metadata
-    $.ajax({
-        url: json,
-        type: 'GET',
-        dataType: 'json',
-        success: function(res) {
-            console.log(res);
-            playSong(res, url, id);
-
-            let audio = $('.audio_js')[0];
-            audio.currentTime = lastTs;
-            audio.play();
-        }
-    });
+    if (lastSong !== null)
+    {
+        loadSong(lastSong, false);
+    }
 
     // set & trigger
     console.log(playOrder)
+    console.log(searchType)
+    console.log(searchTerm)
     $('.playSequenceJs').val(playOrder).trigger("input");
     $('.searchTypeJs').val(searchType).trigger("input");
     $('.searchQueryJs').val(searchTerm).trigger("input");
@@ -90,7 +93,7 @@ function searchDynamic() {
     let q = ($('.searchQueryJs').val());
     let searchType = ($('.searchTypeJs').val());
 
-    let url = new URL('http://localhost/d/songs')
+    let url = new URL(baseUrl + '/d/songs')
     url.searchParams.append('q', q);
     url.searchParams.append('t', searchType);
 
@@ -115,23 +118,8 @@ function loadDynamic(url, type) {
             $('.pagination-dynamic').append(pag);
 
             $('.playSong_js').on('click', function() {
-                //alert("Hi")
-
                 let id = $(this).data('id');
-                currentSong = id;
-                let url = 'http://localhost/meta/file/' + id;
-                let json = 'http://localhost/meta/json/' + id;
-
-                // get metadata
-                $.ajax({
-                    url: json,
-                    type: 'GET',
-                    dataType: 'json', // added data type
-                    success: function(res) {
-                        console.log(res);
-                        playSong(res, url, id);
-                    }
-                });
+                loadSong(id);
             });
 
             $('.passthrough').each(function(i, obj) {
@@ -152,6 +140,16 @@ function loadDynamic(url, type) {
                     loadDynamic(url, 'songs');
                 })
             });
+
+            $('.js_searchAlbum').on('click', function() {
+                $('.searchQueryJs').val($(this).data('term')).trigger('input')
+                $('.searchTypeJs').val('album').trigger('input')
+            })
+
+            $('.js_searchArtist').on('click', function() {
+                $('.searchQueryJs').val($(this).data('term')).trigger('input')
+                $('.searchTypeJs').val('author').trigger('input')
+            })
         }
     });
 }
@@ -166,6 +164,42 @@ String.prototype.toHHMMSS = function () {
     if (minutes < 10) {minutes = "0"+minutes;}
     if (seconds < 10) {seconds = "0"+seconds;}
     return hours+':'+minutes+':'+seconds;
+}
+
+function loadSong(id, shouldPush = true) {
+    id = Number(id);
+
+    console.warn('loadSong:', id);
+    console.warn('queue before:', queue);
+    console.warn('queueIndex before:', queueIndex);
+
+    currentSong = id;
+
+    if (shouldPush) {
+        queue.push(id);
+        queueIndex = queue.length - 1;
+    }
+
+    localStorage.setItem("queueOrder", JSON.stringify(queue));
+    localStorage.setItem("queueIndex", queueIndex);
+
+    console.warn('queue after:', queue);
+    console.warn('queueIndex after:', queueIndex);
+
+    let url = baseUrl + '/meta/file/' + id;
+    let json = baseUrl + '/meta/json/' + id;
+
+    $.ajax({
+        url: json,
+        type: 'GET',
+        dataType: 'json',
+        success: function(res) {
+            playSong(res, url, id);
+
+            let audio = $('.audio_js')[0];
+            audio.play();
+        }
+    });
 }
 
 function playSong(meta, url, id) {
@@ -184,9 +218,9 @@ function playSong(meta, url, id) {
     $('#seek').attr('max', Math.floor(meta.metadata.duration_seconds));
 
     $('.artist_js').html(meta.metadata.artist ?? "<i>unknown</i>");
-    $('.title_js').html(meta.metadata.title ?? "<i>unknown</i>");
+    $('.title_js').html(meta.metadata.title ?? "<i>" + meta.metadata.filename + "</i>");
 
-    $('.logo').attr('src', 'http://localhost/meta/cover/' + id);
+    $('.logo').attr('src', baseUrl + '/meta/cover/' + id);
 
     if ('mediaSession' in navigator) {
 
@@ -195,10 +229,18 @@ function playSong(meta, url, id) {
         artist: meta.metadata.artist ?? "unknown artist",
         album: meta.metadata.album ?? "unknown title",
         artwork: [
-        { src: 'http://localhost/meta/cover/' + id, sizes: '512x512', type: 'image/png' },
+        { src: baseUrl + '/meta/cover/' + id, sizes: '512x512', type: 'image/png' },
         ]
     });
     }
+
+    navigator.mediaSession.setActionHandler('play', () => { $('.play_js').trigger('click') });
+    navigator.mediaSession.setActionHandler('pause', () => { $('.pause_js').trigger('click') });
+    navigator.mediaSession.setActionHandler('stop', () => { $('.pause_js').trigger('click') });
+    navigator.mediaSession.setActionHandler('seekforward', () => { /* Code excerpted. */ });
+    navigator.mediaSession.setActionHandler('seekto', () => { /* Code excerpted. */ });
+    navigator.mediaSession.setActionHandler('previoustrack', () => { triggerPreviousSong() });
+    navigator.mediaSession.setActionHandler('nexttrack', () => { triggerNextSong() });
 }
 
 const audio = $('.audio_js')[0];
@@ -223,52 +265,76 @@ function getRandomArbitrary(min, max) {
     return Math.random() * (max - min) + min;
 }
 
-audio.addEventListener('ended', () => {
-    // GENERALLY the way the files are processed
-    // allows for it to be sequential. but it might not work well for
-    // when there are more than two queue workers
+function printQueuePosition() {
+    // Ugggghhhhhhhhhhhhhhhhhhhhhhhh
+    for (let i = 0; i < queue.length; i++) {
+        queueIndex == i ? console.warn(queue[i]) : console.log(queue[i]);
+    }
+}
 
-    // also check queue endpoint when its added
+function triggerPreviousSong() {
+    console.log('GOING BACK', queueIndex, queue)
+    // go back into the queue, if there's no more songs before
+    if (queueIndex > 0)
+    {
+        queueIndex--;
+        localStorage.setItem("queueIndex", queueIndex);
+        loadSong(queue[queueIndex], false);
+    }
+    else
+    {
+        loadSong(queue[0], false);
+    }
+}
 
-    console.log("song ended")
-    console.log(currentSong);
+function triggerNextSong() {
+    console.log('GOING NEXT', queueIndex, queue)
 
-    // handle playStatus
+    // check, does the queue have a song that's already in front??
+    if (queueIndex + 1 < queue.length) {
+        queueIndex++;
+        loadSong(queue[queueIndex], false);
+        return;
+    }
+
     if (playStatus == "sequential") {
         let trNext = $('.songRow[data-id="' + currentSong + '"]')
             .nextAll('.songRow')
             .first();
 
-        currentSong = trNext.data('id');
+        let nextSong = trNext.data('id');
+
+        loadSong(nextSong);
     } else if (playStatus == "sequentialUp") {
         let trPrev = $('.songRow[data-id="' + currentSong + '"]')
             .prevAll('.songRow')
             .first();
 
-        currentSong = trPrev.data('id');
+        let nextSong = trPrev.data('id');
+
+        loadSong(nextSong);
     } else if (playStatus == "shuffle") {
-        currentSong = getRandomArbitrary(0,100);
+        $.ajax({
+            url: baseUrl + '/meta/song_count',
+            type: 'GET',
+            dataType: 'json',
+            success: function(res) {
+                console.log(res, 'res result');
+                let nextSong = Math.floor(
+                    Math.random() * res.files
+                );
+                console.log(nextSong, "random next song");
+                loadSong(nextSong);
+            }
+        });
     } else {
-        currentSong = Number(currentSong) + 1;
+        let nextSong = Number(currentSong) + 1;
+        loadSong(nextSong);
     }
-    
-    let id = currentSong;
-    let url = 'http://localhost/meta/file/' + id;
-    let json = 'http://localhost/meta/json/' + id;
+}
 
-    // get metadata
-    $.ajax({
-        url: json,
-        type: 'GET',
-        dataType: 'json',
-        success: function(res) {
-            console.log(res);
-            playSong(res, url, id);
-
-            let audio = $('.audio_js')[0];
-            audio.play();
-        }
-    });
+audio.addEventListener('ended', () => {
+    triggerNextSong();
 });
 
 $('#volume').on('input', function () {
@@ -285,3 +351,12 @@ $('.pause_js').on('click', function() {
     let audio = $('.audio_js')[0];
     audio.pause();
 });
+
+$('.next_js').on('click', function() {
+    triggerNextSong();
+})
+
+$('.previous_js').on('click', function() {
+    triggerPreviousSong();
+})
+

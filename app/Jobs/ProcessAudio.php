@@ -86,6 +86,16 @@ class ProcessAudio implements ShouldQueue
 
         if ($this->jobType == JobType::GRAB_METADATA)
         {
+            // is the file even an audio file
+            /*
+            $mime = mime_content_type(Storage::disk('music')->path($this->fileName));
+            if (!strstr($mime, "audio/")) 
+            {
+                $job->update([
+                    'job_status' => -4, // file is not a sound
+                ]);
+            }*/
+
             $audio = Audio::read(Storage::disk('music')->path($this->fileName));
             $metadata = $audio->getMetadata();
             $metadata = $metadata->toArray(); // meta
