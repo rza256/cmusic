@@ -1,14 +1,18 @@
 <?php
 
-namespace CMusic;
+namespace CMusic\Plugins;
 
-use CMusic\Options;
+use CMusic\Fields;
+use CMusic\Field;
+use CMusic\Plugin;
+
+use App\Models\File;
 
 class LastFm extends Plugin
 {
     public function __construct() {
-        $options = new Options([
-            new Option('', 'string', 'LASTFM_API_KEY', 'API key'),
+        $fields = new Fields([
+            new Field('', 'string', 'LASTFM_API_KEY', 'API key'),
         ]);
 
         $authorInfo = (object)[
@@ -20,6 +24,11 @@ class LastFm extends Plugin
             'minimum_api_version' => 1,
         ];
 
-        parent::__construct($options, $authorInfo);
+        parent::__construct($fields, $authorInfo);
+    }
+
+    #[\Override]
+    public function onSongPlay(File $file) {
+        report('onSongPlay played on ' . $file->id);
     }
 }

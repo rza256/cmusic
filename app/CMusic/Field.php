@@ -6,27 +6,27 @@
 
 namespace CMusic;
 
-class Option
+class Field
 {
     public function __construct(
-        private string $value, // backend, Option model "value" col default
-        private string $type, // backend, Option model "type" col "string", "integer" 
-        private string $key, // backend, Option model "key" col
+        private string $value, // backend, Field model "value" col default
+        private string $type, // backend, Field model "type" col "string", "integer" 
+        private string $key, // backend, Field model "key" col
         private string $title, // frontend, title (e.g "title")
         private string $placeholder = '', // frontend, placeholder (e.g. "placeholder")
         private bool $modifiable = true, // frontend, decides if input is disabled
         private bool $render = true, // frontend, decides if input should be displayed at all
     ) {
         if (empty($key)) {
-            throw new \InvalidArgumentException('Option key cannot be empty');
+            throw new \InvalidArgumentException('Field key cannot be empty');
         }
     }
 
     public function dbInit() {
         // init if needed
-        $option = \App\Models\Option::where('key', $this->key)->first();
-        if (!$option) {
-            $option = \App\Models\Option::create([
+        $field = \App\Models\Field::where('key', $this->key)->first();
+        if (!$field) {
+            $field = \App\Models\Field::create([
                 'key' => $this->key,
                 'value' => $this->value,
                 'type' => $this->type,
@@ -47,14 +47,14 @@ class Option
     }
 
     public function setValue(string $value) : void {
-        $option = \App\Models\Option::where('key', $this->key)->first();
-        if ($option) {
-            $option->update([
+        $field = \App\Models\Field::where('key', $this->key)->first();
+        if ($field) {
+            $field->update([
                 'key' => $this->key,
                 'value' => $this->value, 
             ]);
         }
 
-        $this->value = $option->value;
+        $this->value = $field->value;
     }  
 }

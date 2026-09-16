@@ -14,6 +14,14 @@ Route::prefix('/jobs')->group(function() {
     Route::get('/transcode/ab/{id}', [\App\Http\Controllers\JobsController::class, 'transcodeAlbum'])->name("cmusic.jobs.transcodeAlbum");
 });
 
+Route::prefix('/plugins')->group(function() {
+    Route::get('/', [\App\Http\Controllers\PluginController::class, 'home'])->name("cmusic.settings.home");
+
+    Route::prefix('/hooks')->group(function() {
+        Route::post('/play/{id}', [\App\Http\Controllers\PluginController::class, 'playHook'])->name("cmusic.plugins.hooks.play");
+    });
+});
+
 Route::prefix('/meta')->group(function() {
     Route::get('/song_count', function() {
         return response()->json((object)['files' => \App\Models\File::all()->count()]);

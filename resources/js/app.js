@@ -190,6 +190,13 @@ function loadSong(id, shouldPush = true) {
     let json = baseUrl + '/meta/json/' + id;
 
     $.ajax({
+        url: baseUrl + '/plugins/hooks/play/' + id,
+        type: 'POST',
+        dataType: 'json',
+        success: function(res) { console.log(res); }
+    });
+
+    $.ajax({
         url: json,
         type: 'GET',
         dataType: 'json',

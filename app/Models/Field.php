@@ -4,8 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Option extends Model
+class Field extends Model
 {
+    protected $table = 'options';
+
     public $fillable = [
         'key',
         'value',

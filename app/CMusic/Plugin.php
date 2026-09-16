@@ -5,29 +5,28 @@
 // feel free to make pull requests!!!
 
 namespace CMusic;
-use CMusic\Option;
-use CMusic\Options;
+use App\Models\File;
 
 class Plugin
 {
     public const API_VERSION = 1;
-    private Options $options;
+    private Fields $fields;
 
     // Author information
     private object $authorInfo;
 
-    public function __construct(Options $options, object $authorInfo)
+    public function __construct(Fields $fields, object $authorInfo)
     {
         if ($authorInfo->minimum_api_version < Plugin::API_VERSION) {
             report(new \RuntimeException('Plugin ' . $authorInfo->plugin_name . ' requires an API version that is not supported anymore. If you think this is a mistake please enable the PLUGIN_API_VER_BYPASS env var.'));
             die();
         }
 
-        $this->options = $options;
+        $this->fields = $fields;
         $this->authorInfo = $authorInfo;
 
-        foreach ($this->options->get() as $option) {
-            $option->dbInit();
+        foreach ($this->fields->get() as $field) {
+            $field->dbInit();
         }
     }
 
@@ -35,11 +34,15 @@ class Plugin
         return $this->authorInfo;
     }
 
-    public function getOptions() : Options {
-        return $this->options;
+    public function getOptions() : Fields {
+        return $this->fields;
     }
 
     public function option(string $key): ?string {
-        return $this->options->getByKey($key)?->getValue();
+        return $this->fields->getByKey($key)?->getValue();
     }
+
+    // hooks
+    public function onSongPlay(File $file) {}
+    public function onFileAdded(File $file) {}
 }
