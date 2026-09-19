@@ -1,4 +1,4 @@
-@php ($tabs = ["home", "songs", "queue", "jobs", "transcodes"])
+@php ($tabs = ["home", "songs", "queue", "jobs", "transcodes", "plugins"])
 <!DOCTYPE html>
 <html>
     <head>

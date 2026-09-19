@@ -24,7 +24,12 @@ class JobsController extends Controller {
         $files = Storage::disk('music')->allFiles();
 
         foreach($files as $file) {
-            ProcessAudio::dispatch($file, JobType::GRAB_METADATA);
+            $fileM = File::where('file_path', $file)->first();
+            if (!$fileM)
+            {
+                echo $file . "<br>";
+                ProcessAudio::dispatch($file, JobType::GRAB_METADATA);
+            }
         }
     }
 

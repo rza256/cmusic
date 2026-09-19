@@ -14,6 +14,7 @@ class Field extends Model
         'title',
         'placeholder',
         'modifiable',
-        'render'
+        'render',
+        'is_text'
     ];
 }

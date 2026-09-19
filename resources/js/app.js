@@ -44,7 +44,7 @@ $().ready(function() {
 
     if (lastSong !== null)
     {
-        loadSong(lastSong, false);
+        loadSong(lastSong, false, true);
     }
 
     // set & trigger
@@ -117,7 +117,9 @@ function loadDynamic(url, type) {
             let pag = $('.pagination-default').detach();
             $('.pagination-dynamic').append(pag);
 
-            $('.playSong_js').on('click', function() {
+            $('.playSong_js').on('click', function(event) {
+                event.preventDefault();
+                
                 let id = $(this).data('id');
                 loadSong(id);
             });
@@ -141,12 +143,16 @@ function loadDynamic(url, type) {
                 })
             });
 
-            $('.js_searchAlbum').on('click', function() {
+            $('.js_searchAlbum').on('click', function(event) {
+                event.preventDefault();
+
                 $('.searchQueryJs').val($(this).data('term')).trigger('input')
                 $('.searchTypeJs').val('album').trigger('input')
             })
 
-            $('.js_searchArtist').on('click', function() {
+            $('.js_searchArtist').on('click', function(event) {
+                event.preventDefault();
+
                 $('.searchQueryJs').val($(this).data('term')).trigger('input')
                 $('.searchTypeJs').val('author').trigger('input')
             })
@@ -166,7 +172,7 @@ String.prototype.toHHMMSS = function () {
     return hours+':'+minutes+':'+seconds;
 }
 
-function loadSong(id, shouldPush = true) {
+function loadSong(id, shouldPush = true, resume = false) {
     id = Number(id);
 
     console.warn('loadSong:', id);
@@ -190,7 +196,7 @@ function loadSong(id, shouldPush = true) {
     let json = baseUrl + '/meta/json/' + id;
 
     $.ajax({
-        url: baseUrl + '/plugins/hooks/play/' + id,
+        url: baseUrl + '/plugins/hooks/play/' + id + "?resume=" + (resume ? "true" : "false"),
         type: 'POST',
         dataType: 'json',
         success: function(res) { console.log(res); }

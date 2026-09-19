@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('placeholder')->nullable();
             $table->boolean('modifiable')->defalt(true);
             $table->boolean('render')->default(true);
+            $table->boolean('is_text')->default(false);
             $table->timestamps();
         });
     }

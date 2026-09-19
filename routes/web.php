@@ -15,7 +15,9 @@ Route::prefix('/jobs')->group(function() {
 });
 
 Route::prefix('/plugins')->group(function() {
-    Route::get('/', [\App\Http\Controllers\PluginController::class, 'home'])->name("cmusic.settings.home");
+    Route::get('/', [\App\Http\Controllers\PluginController::class, 'home'])->name("cmusic.plugins");
+    Route::get('/{plugin}', [\App\Http\Controllers\PluginController::class, 'plugin'])->name("cmusic.plugin");
+    Route::post('/{plugin}', [\App\Http\Controllers\PluginController::class, 'updateSettings'])->name("cmusic.plugin.settings");
 
     Route::prefix('/hooks')->group(function() {
         Route::post('/play/{id}', [\App\Http\Controllers\PluginController::class, 'playHook'])->name("cmusic.plugins.hooks.play");

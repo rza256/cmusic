@@ -6,6 +6,7 @@
 
 namespace CMusic;
 use CMusic\Option;
+use CMusic\Field;
 
 class Fields
 {

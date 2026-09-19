@@ -34,7 +34,7 @@ class Plugin
         return $this->authorInfo;
     }
 
-    public function getOptions() : Fields {
+    public function getFields() : Fields {
         return $this->fields;
     }
 
@@ -43,6 +43,8 @@ class Plugin
     }
 
     // hooks
-    public function onSongPlay(File $file) {}
+    public static function registerRoutes(): void {}
+    public function onPluginUpdated() {}
+    public function onSongPlay(File $file, bool $isResuming) {}
     public function onFileAdded(File $file) {}
 }
