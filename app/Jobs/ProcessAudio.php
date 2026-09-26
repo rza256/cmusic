@@ -55,11 +55,15 @@ class ProcessAudio implements ShouldQueue
             'album' => '',
             'title' => '',
             'artist' => '',
-            'file_hash' => null,
+            'file_hash' => '',
         ]);
+
+        report('1');
 
         if ($jobExists)
             return;
+
+        report('2');
 
         // start checking things
         if(!Storage::disk('music')->exists($this->fileName))
@@ -72,8 +76,14 @@ class ProcessAudio implements ShouldQueue
             return;
         }
 
+        report('3');
+
         $hash = hash_file("xxh3", Storage::disk('music')->path($this->fileName));
         $file = File::where('file_hash', $hash)->first();
+        
+        $job->update([
+            'file_hash' => $hash
+        ]);
 
         if ($file) {
             // file w/ hash already exists
@@ -83,6 +93,8 @@ class ProcessAudio implements ShouldQueue
             
             return;
         }
+
+        report('4');
 
         if ($this->jobType == JobType::GRAB_METADATA)
         {
@@ -104,6 +116,7 @@ class ProcessAudio implements ShouldQueue
             $full = array_merge($metadata, $raw_all);
 
             try {
+                report('5');
                 $file = File::create([
                     'file_path' => $this->fileName,
                     'album' => $full['album'] ?? '',
@@ -115,6 +128,8 @@ class ProcessAudio implements ShouldQueue
                     'metadata' => $full,
                 ]);
             } catch(\Exception $e) {
+
+                report($e);
                 // most likely
                 // "Unable to encode attribute [metadata] for model"
                 $job->update([

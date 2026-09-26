@@ -6,6 +6,7 @@
 
 namespace CMusic;
 use App\Models\File;
+use \Illuminate\Support\Facades\Schema;
 
 class Plugin
 {
@@ -24,6 +25,10 @@ class Plugin
 
         $this->fields = $fields;
         $this->authorInfo = $authorInfo;
+
+if (!Schema::hasTable('options')) {
+return;
+}
 
         foreach ($this->fields->get() as $field) {
             $field->dbInit();

@@ -25,12 +25,13 @@ class JobsController extends Controller {
 
         foreach($files as $file) {
             $fileM = File::where('file_path', $file)->first();
-            if (!$fileM)
+            if (!$fileM && !str_contains($file, '$RECYCLE.BIN'))
             {
-                echo $file . "<br>";
+                // echo $file . "<br>";
                 ProcessAudio::dispatch($file, JobType::GRAB_METADATA);
             }
         }
+        // ProcessAudio::dispatch('Soulseek Downloads/1999 - Still Life/01 - The Moor.mp3', JobType::GRAB_METADATA);
     }
 
     public function transcode(Request $request, int $id)
