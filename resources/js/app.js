@@ -5,6 +5,9 @@ let pageStates = {};
 let playStatus = "sequential";
 let queue = [];
 let queueIndex = 0;
+let currentLyricsCache = "";
+let lrcLines = [];
+var lrc = null; // new Lyric();
 
 $().ready(function() {
     const audio = $('.audio_js')[0];
@@ -202,15 +205,51 @@ function loadSong(id, shouldPush = true, resume = false) {
         success: function(res) { console.log(res); }
     });
 
+    // grab lyrics. does it exist? if not, it returns a 404.
+    $.ajax({
+        url: baseUrl + '/meta/lyrics/' + id,
+        type: 'GET',
+        success: function(res) { 
+            console.log(res);
+            currentLyricsCache = res;
+
+            lrc = new Lyric({
+                onPlay: function (line, text) {
+                    console.log(lrcLines[line].text + '\n' + lrcLines[line].extendedLyrics.join('\n'))
+                    // console.log(lrc.lines[lrc.curLineNum].time - lrc.offset - dom_audio.currentTime * 1000)
+                    // dom_lyric.innerHTML = text + '<br>' + lrcLines[line].extendedLyrics.join('<br>')
+                
+                    $('.header-top-text').text(lrcLines[line].text);
+                },
+                onSetLyric: function (lines) {
+                    lrcLines = lines
+                    console.log(lines)
+                }
+            })
+            // lrc.setLyric(b64DecodeUnicode(encodeLrc), b64DecodeUnicode(encodeLrc))
+            lrc.setLyric(res)
+
+            /*
+            dom_audio.onplay = function () {
+                lrc.play(dom_audio.currentTime * 1000)
+            }
+            dom_audio.onpause = function () {
+                lrc.pause()
+            }*/
+        },
+        error: function(res) {
+            console.log('failed to get currentLyricsCache');
+            currentLyricsCache = "";
+        }
+    });
+
     $.ajax({
         url: json,
         type: 'GET',
         dataType: 'json',
         success: function(res) {
             playSong(res, url, id);
-
-            let audio = $('.audio_js')[0];
-            audio.play();
+            play()
         }
     });
 }
@@ -267,6 +306,8 @@ audio.addEventListener('timeupdate', () => {
 });
 
 seek.on('input', function () {
+    lrc.play(audio.currentTime * 1000)
+    console.log(audio.currentTime * 1000)
     audio.currentTime = this.value;
 });
 
@@ -356,13 +397,25 @@ $('#volume').on('input', function () {
 });
 
 $('.play_js').on('click', function() {
+    play()
+});
+
+function play() {
     let audio = $('.audio_js')[0];
     audio.play();
-});
+    if (currentLyricsCache != "") {
+        console.log('playing with lyrics')
+        lrc.play(audio.currentTime * 1000)
+    }
+}
 
 $('.pause_js').on('click', function() {
     let audio = $('.audio_js')[0];
     audio.pause();
+    if (currentLyricsCache != "") {
+        // console.log('playing with lyrics')
+        lrc.pause()
+    }
 });
 
 $('.next_js').on('click', function() {

@@ -17,6 +17,12 @@ h1,h2,h3,h4,h5 {
     display: inline-block;
 }
 
+.under {
+    padding-bottom: 3px;
+    border-bottom: 1px solid #d3d3d3;
+    width: 100%;
+}
+
 .optr {
     position: relative;
     bottom: 5px;

@@ -169,4 +169,18 @@ class AudioController extends Controller {
 
         return response()->file(Storage::disk('public')->path('logo.png'));
     }
+
+    public function lyrics(Request $request, int $id)
+    {
+        $fileM = File::where('id', $id)->firstOrFail();
+        $lrc = dirname($fileM->file_path) . '/' . pathinfo($fileM->file_path, PATHINFO_FILENAME) . ".lrc";
+
+        //die($lrc);
+        if (Storage::disk('music')->exists($lrc))
+        {
+            return response()->file(Storage::disk('music')->path($lrc));
+        }
+
+        return abort(404);
+    }
 }

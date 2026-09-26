@@ -1,9 +1,10 @@
-@php ($tabs = ["home", "songs", "queue", "jobs", "transcodes", "plugins"])
+@php ($tabs = ["home", "songs", "queue", "jobs", "transcodes", "plugins", "settings"])
 <!DOCTYPE html>
 <html>
     <head>
         <title>{{ strtolower(config('app.name')) }} - @yield('title')</title>
         <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+        <script src="./lrc-file-parser.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/4.0.0/jquery.min.js" integrity="sha512-8LENNbXmzI/Gbj+OwXmqR6V4QaUAw0/porPzy1+dQoJqC0JPHedWoe0DDOTL2uHA5XXJyIsPtiMHH86pVlay6A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         @vite(['resources/js/app.js'])
         @vite(['resources/scss/app.scss'])
@@ -15,7 +16,7 @@
             </div>
             <div class="header-right">
                 <div class="header-top">
-                    <h1>@yield('title') : cmusic</h1>
+                    <h1 class="header-top-text">@yield('title') : cmusic</h1>
                     <div class="fr">
                         <select class="playSequenceJs" name="type">
                             <option value="file">by file id</option>

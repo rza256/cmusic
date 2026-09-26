@@ -3,5 +3,6 @@
 ])
 @section('title', 'home')
 @section('content')
-    Hello
+    <h2 class="under"><b>stats</b></h2>
+    
 @endsection
