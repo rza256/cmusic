@@ -58,7 +58,7 @@ class ProcessAudio implements ShouldQueue
             'file_hash' => '',
         ]);
 
-        report('1');
+        // report('1');
 
         if ($jobExists)
             return;
@@ -76,7 +76,7 @@ class ProcessAudio implements ShouldQueue
             return;
         }
 
-        report('3');
+        // report('3');
 
         $hash = hash_file("xxh3", Storage::disk('music')->path($this->fileName));
         $file = File::where('file_hash', $hash)->first();
@@ -94,7 +94,7 @@ class ProcessAudio implements ShouldQueue
             return;
         }
 
-        report('4');
+        // report('4');
 
         if ($this->jobType == JobType::GRAB_METADATA)
         {
