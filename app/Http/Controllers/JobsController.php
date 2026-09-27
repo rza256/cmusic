@@ -71,11 +71,13 @@ class JobsController extends Controller {
         });
         
         $files = PaginationHelper::paginate($files, 100);
+        $fileCount = File::all()->count();
 
         // get jobs, in progress & succeeding
         $processingJobs = ProcessingJob::orderBy('updated_at', 'desc')->paginate(100);
 
         return view('jobs', [
+            'fileCount' => $fileCount,
             'files' => $files,
             'totalFS' => $totalFS,
             'lastCheck' => $rt,

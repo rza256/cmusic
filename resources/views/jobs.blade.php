@@ -5,14 +5,14 @@
 @section('content')
     <div class="flex">
         <div class="col-1">
-            <b>{{ number_format($files->count()) }}</b> <span class="sub">total files on disk</span><br>
+            <b>{{ number_format($fileCount) }}</b> <span class="sub">total files on disk</span><br>
             <b>{{ formatBytes($totalFS) }}</b> <span class="sub">total storage being used on disk</span><br>
             <b>{{ $lastCheck->diffForHumans() }}</b> <span class="sub">last checked time (cache)</span><br>
         </div>
         <div class="col-1">
-            <b>0</b> <span class="sub">jobs running</span><br>
-            <b>0</b> <span class="sub">jobs failed</span><br>
-            <b>{{ \App\Models\Transcode::all()->count() }} / {{ number_format($files->count()) }}</b> files processed<span class="sub"></span><br>
+            <b>{{ number_format(\App\Models\ProcessingJob::where('job_status', '0')->get()->count()) }}</b> <span class="sub">jobs running</span><br>
+            <b>{{ number_format(\App\Models\ProcessingJob::where('job_status', '!=', '1')->where('job_status', '!=', '0')->get()->count()) }}</b> <span class="sub">jobs failed</span><br>
+            <b>{{ \App\Models\Transcode::all()->count() }} / {{ number_format($fileCount) }}</b> files transcoded<span class="sub"></span><br>
         </div>
         <div class="col-1">
 	    <a href="{{ route('cmusic.forceMiss') }}">

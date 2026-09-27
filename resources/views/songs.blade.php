@@ -4,9 +4,39 @@
 @section('title', 'songs')
 @php
 $c = []; // buffer of albums
+$rows = [
+    "bpm",
+    "upc",
+    "url",
+    "date",
+    "isrc",
+    "bitrate",
+    "encoder",
+    "copyright",
+];
 @endphp
 @section('content')
-    <div class="dynamic" data-name="songs"></div>
+    <div class="flex">
+        <div class="col-1">
+            <b>audio metadata</b>
+            <table>
+                <tr>
+                    <th></th>
+                    <th></th>
+                </tr>
+            
+                @foreach($rows as $row)
+                    <tr>
+                        <td>{{ $row }}</td>
+                        <td data-row="{{ $row }}"></td>
+                    </tr>
+                @endforeach
+            </table>
+        </div>
+        <div class="col-2">
+            <div class="dynamic" data-name="songs"></div>
+        </div>
+    </div>
 @endsection
 @section('options')
     <span class="sub">filters: </span>

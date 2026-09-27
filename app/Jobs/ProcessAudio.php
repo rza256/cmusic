@@ -61,13 +61,17 @@ class ProcessAudio implements ShouldQueue
         // report('1');
 
         if ($jobExists)
+        {
+            report("jobExists");
             return;
+        }
 
-        report('2');
 
         // start checking things
         if(!Storage::disk('music')->exists($this->fileName))
         {
+            report("!Storage::disk('music')->exists(this->fileName)");
+
             // file no longer exists
             $job->update([
                 'job_status' => -2,
@@ -79,25 +83,28 @@ class ProcessAudio implements ShouldQueue
         // report('3');
 
         $hash = hash_file("xxh3", Storage::disk('music')->path($this->fileName));
-        $file = File::where('file_hash', $hash)->first();
-        
-        $job->update([
-            'file_hash' => $hash
-        ]);
-
-        if ($file) {
-            // file w/ hash already exists
-            $job->update([
-                'job_status' => -3,
-            ]);
-            
-            return;
-        }
 
         // report('4');
 
         if ($this->jobType == JobType::GRAB_METADATA)
         {
+            $file = File::where('file_hash', $hash)->first();
+            
+            $job->update([
+                'file_hash' => $hash
+            ]);
+
+            if ($file) {
+                report("file assert hash exists");
+
+                // file w/ hash already exists
+                $job->update([
+                    'job_status' => -3,
+                ]);
+                
+                return;
+            }
+
             // is the file even an audio file
             /*
             $mime = mime_content_type(Storage::disk('music')->path($this->fileName));
@@ -116,7 +123,6 @@ class ProcessAudio implements ShouldQueue
             $full = array_merge($metadata, $raw_all);
 
             try {
-                report('5');
                 $file = File::create([
                     'file_path' => $this->fileName,
                     'album' => $full['album'] ?? '',

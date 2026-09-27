@@ -306,7 +306,9 @@ audio.addEventListener('timeupdate', () => {
 });
 
 seek.on('input', function () {
-    lrc.play(audio.currentTime * 1000)
+    if (currentLyricsCache != "") {
+        lrc.play(audio.currentTime * 1000)
+    }
     console.log(audio.currentTime * 1000)
     audio.currentTime = this.value;
 });
