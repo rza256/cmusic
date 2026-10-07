@@ -6,18 +6,18 @@
 $c = []; // buffer of albums
 $rows = [
     "bpm",
-    "upc",
-    "url",
     "date",
-    "isrc",
     "bitrate",
-    "encoder",
-    "copyright",
+    "publisher",
+    "year",
+    "genre",
 ];
 @endphp
 @section('content')
     <div class="flex">
-        <div class="col-1">
+        <div class="col-1 left-side">
+            <div id="audio-container"></div><br>
+
             <b>audio metadata</b>
             <table>
                 <tr>
@@ -28,9 +28,23 @@ $rows = [
                 @foreach($rows as $row)
                     <tr>
                         <td>{{ $row }}</td>
-                        <td data-row="{{ $row }}"></td>
+                        <td class="meta-row" data-row="{{ $row }}"><i class="sub">unknown</i></td>
                     </tr>
                 @endforeach
+            </table><br>
+            <b>queue</b>
+            <table>
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            
+                <tr class="queue-template">
+                    <td class="author"></td>
+                    <td class="title"></td>
+                    <td class="play"></td>
+                </tr>
             </table>
         </div>
         <div class="col-2">

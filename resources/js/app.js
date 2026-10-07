@@ -1,4 +1,4 @@
-const baseUrl = 'http://localhost'
+const baseUrl = window.location.protocol + "//" + window.location.host;
 
 let currentSong = -1;
 let pageStates = {};
@@ -8,6 +8,12 @@ let queueIndex = 0;
 let currentLyricsCache = "";
 let lrcLines = [];
 var lrc = null; // new Lyric();
+const QUEUE_MAX = 20;
+let queueMeta = {};
+let afterLoad = null; 
+if ("audioSession" in navigator) {
+    navigator.audioSession.type = "playback";
+}
 
 $().ready(function() {
     const audio = $('.audio_js')[0];
@@ -28,19 +34,21 @@ $().ready(function() {
     const queueOrder = localStorage.getItem("queueOrder");
     const queueIndex_ = localStorage.getItem("queueIndex");
 
-    //
-    if(queueOrder == null) {
-        queue = []; 
-        localStorage.setItem("queueOrder", JSON.stringify(queue))
-    } else {
-        console.log('found queueOrder' , queueOrder)
-        queue = JSON.parse(queueOrder);
-    }
+    queue = queueOrder == null ? [] : JSON.parse(queueOrder);
+    queueMeta = JSON.parse(localStorage.getItem("queueMeta") ?? "{}");
+
+    // if the stored queue was longer than the cap, trim it and shift the index to match
+    const trimmed = Math.max(0, queue.length - QUEUE_MAX);
+    queue = queue.slice(trimmed);
 
     playStatus = playOrder === null ? "sequential" : playOrder;
     currentSong = lastSong === null ? -1 : lastSong;
-    queueIndex = queueIndex_ === null ? 0 : Number(queueIndex_);
+    queueIndex = queueIndex_ === null ? 0 : Math.max(0, Number(queueIndex_) - trimmed);
 
+    saveQueue();
+    renderQueue();
+    queue.forEach(fetchQueueMeta); // only fetches ids we don't already have cached
+    
     volume.val(lastGain);
     audio.volume = lastGain / 100;
     audio.currentTime = lastTs;
@@ -90,7 +98,168 @@ $().ready(function() {
             searchDynamic()
         }
     });
+
+    // spectrum
+
+    // audio source
+    const audioEl = $('.audio_js')[0];
+
+    // instantiate analyzer
+    console.log(AudioMotionAnalyzer)
+    const audioMotion = new AudioMotionAnalyzer (
+    $('#audio-container')[0],
+    {
+        source: audioEl,
+        height: 100,
+        // you can set other options below - check the docs!
+        mode: 3,
+        barSpace: 4,
+        ledBars: true,
+        ansiBands: true,
+        overlay: false,
+        loRes: true,
+        maxFps: 60,
+        frequencyScale: 'linear',
+        trueLeds: true,
+    }
+    );
+
+    // display module version
+    document.getElementById('version').innerText = `v${AudioMotionAnalyzer.version}`;
+
+    // play stream
+    document.getElementById('live').addEventListener( 'click', () => {
+    audioEl.src = 'https://icecast2.ufpel.edu.br/live';
+    audioEl.play();
+    });
+
+    // file upload
+    document.getElementById('upload').addEventListener( 'change', e => {
+        const fileBlob = e.target.files[0];
+
+        if ( fileBlob ) {
+            audioEl.src = URL.createObjectURL( fileBlob );
+            audioEl.play();
+        }
+    });
 })
+
+function pageOf(href) {
+    return Number(new URL(href).searchParams.get('page')) || 1;
+}
+
+
+function goToAdjacentPage(direction, onLoaded) {
+    const sel = $('.pagination-dynamic .selected');
+    const links = $('.pagination-dynamic a.passthrough');
+
+    if (!sel.length || !links.length) return false;
+
+    const current = Number(sel.text().trim());
+    const target = current + direction;
+
+    const max = Math.max(current, ...links.map(function() { return pageOf(this.href); }).get());
+    if (target < 1 || target > max) return false;
+
+    afterLoad = onLoaded;
+
+    const link = links.filter(function() { return pageOf(this.href) === target; }).first();
+
+    if (link.length) {
+        link.trigger('click'); 
+    } else {
+        const url = new URL(links.first().attr('href'));
+        url.searchParams.set('page', target);
+        url.pathname = '/d/songs';
+        loadDynamic(url, 'songs');
+    }
+    return true;
+}
+
+function playEdgeRow(first) {
+    const rows = $('.songRow');
+    if (!rows.length) return;
+    loadSong((first ? rows.first() : rows.last()).data('id'));
+}
+
+function saveQueue() {
+    // only keep meta for songs still in the queue
+    const keep = {};
+    queue.forEach(id => { if (queueMeta[id]) keep[id] = queueMeta[id]; });
+    queueMeta = keep;
+
+    localStorage.setItem("queueOrder", JSON.stringify(queue));
+    localStorage.setItem("queueIndex", queueIndex);
+    localStorage.setItem("queueMeta", JSON.stringify(queueMeta));
+}
+
+
+function trimQueue() {
+    while (queue.length > QUEUE_MAX) {
+        queue.shift();
+        queueIndex = Math.max(0, queueIndex - 1);
+    }
+}
+
+function cacheQueueMeta(id, res) {
+    const m = res.metadata ?? {};
+    queueMeta[id] = {
+        artist: m.artist ?? res.artist ?? null,
+        title: m.title ?? res.title ?? m.filename ?? null,
+    };
+}
+
+function fetchQueueMeta(id) {
+    if (queueMeta[id]) return;
+
+    $.ajax({
+        url: baseUrl + '/meta/json/' + id,
+        type: 'GET',
+        dataType: 'json',
+        success: function(res) {
+            cacheQueueMeta(id, res);
+            saveQueue();
+            renderQueue();
+        }
+    });
+}
+
+function renderQueue() {
+    const tpl = $('.queue-template');
+    $('.queue-row').remove();
+
+    queue.forEach(function(id, i) {
+        const meta = queueMeta[id];
+        const row = tpl.clone()
+            .removeClass('queue-template')
+            .addClass('queue-row')
+            .attr('data-index', i)
+            .attr('data-id', id);
+
+        row.find('td.author').html(meta?.artist ?? '<i class="sub">unknown</i>');
+        row.find('td.title').html(meta?.title ?? '<i class="sub">loading…</i>');
+
+        const playCell = row.find('td.play');
+        const link = playCell.find('a, button').first();
+        if (link.length) {
+            link.attr('data-id', id).addClass('queue_play_js');
+        } else {
+            playCell.html('<a href="#" class="queue_play_js" data-id="' + id + '">&#9654;</a>');
+        }
+
+        if (i === queueIndex) row.addClass('playing');
+
+        tpl.parent().append(row);
+    });
+}
+
+$(document).on('click', '.queue_play_js', function(e) {
+    e.preventDefault();
+    const i = Number($(this).closest('.queue-row').data('index'));
+    queueIndex = i;
+    saveQueue();
+    loadSong(queue[i], false);
+});
 
 function searchDynamic() {
     let q = ($('.searchQueryJs').val());
@@ -159,6 +328,16 @@ function loadDynamic(url, type) {
                 $('.searchQueryJs').val($(this).data('term')).trigger('input')
                 $('.searchTypeJs').val('author').trigger('input')
             })
+
+
+            if (afterLoad) {
+                const cb = afterLoad;
+                afterLoad = null;
+                cb();
+            }
+        },
+        error: function() {
+            afterLoad = null;
         }
     });
 }
@@ -186,11 +365,12 @@ function loadSong(id, shouldPush = true, resume = false) {
 
     if (shouldPush) {
         queue.push(id);
+        trimQueue();
         queueIndex = queue.length - 1;
     }
 
-    localStorage.setItem("queueOrder", JSON.stringify(queue));
-    localStorage.setItem("queueIndex", queueIndex);
+    saveQueue();
+    renderQueue();
 
     console.warn('queue after:', queue);
     console.warn('queueIndex after:', queueIndex);
@@ -206,6 +386,7 @@ function loadSong(id, shouldPush = true, resume = false) {
     });
 
     // grab lyrics. does it exist? if not, it returns a 404.
+    // but ALSO metadata can contain lyrics
     $.ajax({
         url: baseUrl + '/meta/lyrics/' + id,
         type: 'GET',
@@ -238,6 +419,7 @@ function loadSong(id, shouldPush = true, resume = false) {
             }*/
         },
         error: function(res) {
+            $('.header-top-text').text('songs : cmusic');
             console.log('failed to get currentLyricsCache');
             currentLyricsCache = "";
         }
@@ -248,6 +430,44 @@ function loadSong(id, shouldPush = true, resume = false) {
         type: 'GET',
         dataType: 'json',
         success: function(res) {
+            $('.meta-row').each(function() {
+                $(this).html('<i class="sub">unknown</i>');
+            })
+
+            console.log(res.metadata);
+
+            cacheQueueMeta(id, res);
+            saveQueue();
+            renderQueue();
+
+            for (const [key, value] of Object.entries(res.metadata)) {
+                $('td[data-row="' + key + '"]').text(value);
+            }
+
+            // lyrics
+
+            if (res.metadata.lyrics !== null) {
+                currentLyricsCache = res.metadata.lyrics;
+
+                lrc = new Lyric({
+                    onPlay: function (line, text) {
+                        console.log(lrcLines[line].text + '\n' + lrcLines[line].extendedLyrics.join('\n'))
+                        // console.log(lrc.lines[lrc.curLineNum].time - lrc.offset - dom_audio.currentTime * 1000)
+                        // dom_lyric.innerHTML = text + '<br>' + lrcLines[line].extendedLyrics.join('<br>')
+                    
+                        $('.header-top-text').text(lrcLines[line].text);
+                    },
+                    onSetLyric: function (lines) {
+                        lrcLines = lines
+                        console.log(lines)
+                    }
+                })
+                // lrc.setLyric(b64DecodeUnicode(encodeLrc), b64DecodeUnicode(encodeLrc))
+                lrc.setLyric(res.metadata.lyrics)
+            } else {
+                $('.header-top-text').text('songs : cmusic');
+            }
+
             playSong(res, url, id);
             play()
         }
@@ -354,21 +574,27 @@ function triggerNextSong() {
     }
 
     if (playStatus == "sequential") {
-        let trNext = $('.songRow[data-id="' + currentSong + '"]')
-            .nextAll('.songRow')
-            .first();
+        let row = $('.songRow[data-id="' + currentSong + '"]');
+        if (!row.length) return;
 
-        let nextSong = trNext.data('id');
+        let trNext = row.nextAll('.songRow').first();
 
-        loadSong(nextSong);
+        if (trNext.length) {
+            loadSong(trNext.data('id'));
+        } else {
+            goToAdjacentPage(+1, function() { playEdgeRow(true); });
+        }
     } else if (playStatus == "sequentialUp") {
-        let trPrev = $('.songRow[data-id="' + currentSong + '"]')
-            .prevAll('.songRow')
-            .first();
+        let row = $('.songRow[data-id="' + currentSong + '"]');
+        if (!row.length) return;
 
-        let nextSong = trPrev.data('id');
+        let trPrev = row.prevAll('.songRow').first();
 
-        loadSong(nextSong);
+        if (trPrev.length) {
+            loadSong(trPrev.data('id'));
+        } else {
+            goToAdjacentPage(-1, function() { playEdgeRow(false); });
+        }
     } else if (playStatus == "shuffle") {
         $.ajax({
             url: baseUrl + '/meta/song_count',
