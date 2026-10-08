@@ -142,6 +142,7 @@ $().ready(function() {
             audioEl.play();
         }
     });
+    
 })
 
 function pageOf(href) {
@@ -502,6 +503,7 @@ function playSong(meta, url, id) {
         album: meta.metadata.album ?? "unknown title",
         artwork: [
         { src: baseUrl + '/meta/cover/' + id, sizes: '512x512', type: 'image/png' },
+        { src: baseUrl + '/meta/cover/' + id, sizes: '1024x1024', type: 'image/png' },
         ]
     });
     }
@@ -618,6 +620,37 @@ function triggerNextSong() {
 audio.addEventListener('ended', () => {
     triggerNextSong();
 });
+
+
+audio.addEventListener('error', function failed(e) {
+    // audio playback failed - show a message saying why
+    // to get the source of the audio element use $(this).src
+
+    console.error($(this).src)
+
+    switch (e.target.error.code) {
+        case e.target.error.MEDIA_ERR_ABORTED:
+        console.log('You aborted the video playback.');
+        // triggerNextSong();
+        break;
+        case e.target.error.MEDIA_ERR_NETWORK:
+        console.log('A network error caused the audio download to fail.');
+        triggerNextSong();
+        break;
+        case e.target.error.MEDIA_ERR_DECODE:
+        console.log('The audio playback was aborted due to a corruption problem or because the video used features your browser did not support.');
+        triggerNextSong();
+        break;
+        case e.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            triggerNextSong();
+        console.log('The video audio not be loaded, either because the server or network failed or because the format is not supported.');
+        break;
+        default:
+            triggerNextSong();
+        console.log('An unknown error occurred.');
+        break;
+    }
+}, true);
 
 $('#volume').on('input', function () {
     localStorage.setItem("lastGain", $(this).val());

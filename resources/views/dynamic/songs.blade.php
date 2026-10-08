@@ -3,21 +3,18 @@ $c = []; // buffer of albums
 @endphp
 <table>
     <tr>
-        <th></th>
-        <th>track</th>
-        <th>album</th>
-        <th>title</th>
-        <th>artist</th>
-        <th>actions</th>
-        <th>hash</th>
-        <th>file size</th>
+        <th class="track-col">track</th>
+        <th class="album-col">album</th>
+        <th class="title-col">title</th>
+        <th class="artist-col">artist</th>
+        <th class="actions-col">actions</th>
+        <th class="hash-col">hash</th>
+        <th class="size-col">file size</th>
     </tr>
 
         @forelse($songs as $file)
             @if (!in_array($file->metadata['album'] ?? "unknown", $c, false))
             <tr class="ignore-color">
-                <td class="cover">
-                </td>
                 <td class="track">
                     
                 </td>
@@ -38,11 +35,6 @@ $c = []; // buffer of albums
 
             @if ($file->transcode)
                 <tr data-id="{{ $file->id }}" class="songRow">
-                    <td class="cover">
-                        <a href="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
-                            <img style="width: 16px; height:16px;" src="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
-                        </a>
-                    </td>
                     <td class="track">
                         {!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}
                     </td>
@@ -72,11 +64,6 @@ $c = []; // buffer of albums
                 </tr>
             @else
                 <tr data-id="{{ $file->id }}" class="songRow">
-                    <td class="cover">
-                        <a href="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
-                            <img style="width: 16px; height:16px;" src="{{ route('cmusic.meta.cover', ['id' => $file->id]) }}">
-                        </a>
-                    </td>
                     <td class="track">
                         {!! $file->metadata['track_number'] ?? "<i>?</i>" !!} / {!! $file->metadata['totaltracks'] ?? "<i>?</i>" !!}
                     </td>

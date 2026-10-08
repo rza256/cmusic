@@ -58,7 +58,7 @@
                             </div>
                         </div>
 
-                        <audio controls class="audio_js" style="display:none;">
+                        <audio controls  class="audio_js" style="display:none;">
                             <source src="">
                             Your browser does not support the audio element.
                         </audio> 
@@ -68,11 +68,13 @@
         </div>
         <div class="pages">
             <div class="options">
-                @foreach($tabs as $tab)
-                    <div class="option @if ($sTab == $tab) selected @endif">
-                        <a href="{{ route('cmusic.' . $tab) }}">{{ $tab }}</a>
-                    </div>
-                @endforeach
+                <div class="tabs">
+                    @foreach($tabs as $tab)
+                        <div class="option @if ($sTab == $tab) selected @endif">
+                            <a href="{{ route('cmusic.' . $tab) }}">{{ $tab }}</a>
+                        </div>
+                    @endforeach
+                </div>
 
                 @yield('options')
             </div>

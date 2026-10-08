@@ -17,6 +17,35 @@ h1,h2,h3,h4,h5 {
     display: inline-block;
 }
 
+@media screen and (max-width: 1024px) {
+    .left-side {
+        display: none !important;
+    }
+
+    button {
+        font-size: 17px !important;
+    }
+
+    .track-col,
+    .track {
+        display: none;
+    }
+
+    .hash-col,
+    .hash {
+        display: none;
+    }
+    
+    .size-col,
+    .size {
+        display: none;
+    }
+
+    .header-low .col-1 {
+        display: none !important;
+    }
+}
+
 .left-side {
     padding-right: 10px;
 }
@@ -97,6 +126,10 @@ td {
 
 tr.ignore-color {
     background-color: #d3d3d3 !important;
+}
+
+.tabs {
+    display: inline-block;
 }
 
 .track,
