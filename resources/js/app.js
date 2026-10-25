@@ -6,6 +6,7 @@ let playStatus = "sequential";
 let queue = [];
 let queueIndex = 0;
 let currentLyricsCache = "";
+let g_shouldPush = false;
 let lrcLines = [];
 var lrc = null; // new Lyric();
 const QUEUE_MAX = 20;
@@ -238,7 +239,7 @@ function renderQueue() {
             .attr('data-id', id);
 
         row.find('td.author').html(meta?.artist ?? '<i class="sub">unknown</i>');
-        row.find('td.title').html(meta?.title ?? '<i class="sub">loading…</i>');
+        row.find('td.title').html(meta?.title ?? '<i class="sub">loading...</i>');
 
         const playCell = row.find('td.play');
         const link = playCell.find('a, button').first();
@@ -356,6 +357,7 @@ String.prototype.toHHMMSS = function () {
 }
 
 function loadSong(id, shouldPush = true, resume = false) {
+    g_shouldPush = shouldPush;
     id = Number(id);
 
     console.warn('loadSong:', id);
@@ -363,15 +365,6 @@ function loadSong(id, shouldPush = true, resume = false) {
     console.warn('queueIndex before:', queueIndex);
 
     currentSong = id;
-
-    if (shouldPush) {
-        queue.push(id);
-        trimQueue();
-        queueIndex = queue.length - 1;
-    }
-
-    saveQueue();
-    renderQueue();
 
     console.warn('queue after:', queue);
     console.warn('queueIndex after:', queueIndex);
@@ -469,13 +462,13 @@ function loadSong(id, shouldPush = true, resume = false) {
                 $('.header-top-text').text('songs : cmusic');
             }
 
-            playSong(res, url, id);
+            playSong(res, url, id, shouldPush);
             play()
         }
     });
 }
 
-function playSong(meta, url, id) {
+function playSong(meta, url, id, shouldPush = false) {
     currentSong = id;
 
     $('.songRow').removeClass('playing');
@@ -536,6 +529,7 @@ seek.on('input', function () {
 });
 
 audio.addEventListener('loadedmetadata', () => {
+    renderQueue();
     seek.attr('max', audio.duration);
 });
 
@@ -621,6 +615,21 @@ audio.addEventListener('ended', () => {
     triggerNextSong();
 });
 
+audio.addEventListener('loadeddata', (event) => {
+    if (g_shouldPush) {
+        queue.push(currentSong);
+        trimQueue();
+        queueIndex = queue.length - 1;
+    }
+
+    saveQueue();
+    renderQueue();
+});
+
+audio.addEventListener('canplaythrough', (event) => {
+    renderQueue();
+    console.log("canplaythrough called")
+})
 
 audio.addEventListener('error', function failed(e) {
     // audio playback failed - show a message saying why
