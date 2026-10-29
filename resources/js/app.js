@@ -1,7 +1,6 @@
 const baseUrl = window.location.protocol + "//" + window.location.host;
 
 let currentSong = -1;
-let pageStates = {};
 let playStatus = "sequential";
 let queue = [];
 let queueIndex = 0;
@@ -11,25 +10,68 @@ let lrcLines = [];
 var lrc = null; // new Lyric();
 const QUEUE_MAX = 20;
 let queueMeta = {};
-let afterLoad = null; 
+let queueMetaRequested = new Set(); // ids we already asked the server about this session
+let afterLoad = null;
+let resumeAt = 0; // timestamp to jump to once the restored song loads
+let dynamicRequest = null; // AbortController for the in-flight loadDynamic
 if ("audioSession" in navigator) {
     navigator.audioSession.type = "playback";
 }
 
-$().ready(function() {
-    const audio = $('.audio_js')[0];
-    const seek = $('#seek');
-    const volume = $('#volume');
+const audio = document.querySelector('.audio_js');
+const seek = document.querySelector('#seek');
+const volume = document.querySelector('#volume');
 
+// little helpers so the rest doesn't need jquery
+
+// click handler that also works for stuff that gets swapped in later (the dynamic table)
+function onClick(selector, handler) {
+    document.addEventListener('click', function(e) {
+        const el = e.target.closest(selector);
+        if (!el) return;
+        e.preventDefault();
+        handler(el, e);
+    });
+}
+
+async function getJson(url, options = {}) {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(res.status + ' ' + url);
+    return res.json();
+}
+
+async function getText(url, options = {}) {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(res.status + ' ' + url);
+    return res.text();
+}
+
+// sets text, or an <i> placeholder if there's nothing. never use innerHTML for metadata
+function setTextOr(el, value, placeholder, placeholderClass = '') {
+    if (value != null && value !== '') {
+        el.textContent = value;
+        return;
+    }
+    const i = document.createElement('i');
+    if (placeholderClass) i.className = placeholderClass;
+    i.textContent = placeholder;
+    el.replaceChildren(i);
+}
+
+function setHeaderText(text) {
+    document.querySelector('.header-top-text').textContent = text;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
     // sound related
-    const lastTs = localStorage.getItem("lastTimestamp") ?? 0;
-    const lastSong = localStorage.getItem("lastSong") ?? -1;
+    const lastTs = Number(localStorage.getItem("lastTimestamp") ?? 0);
+    const lastSong = Number(localStorage.getItem("lastSong") ?? -1);
     const lastGain = localStorage.getItem("lastGain") ?? 100;
 
     // search related
     const searchTerm = localStorage.getItem("searchTerm") ?? "";
-    const searchType = localStorage.getItem("searchType") ?? "sequential";
-    const playOrder = localStorage.getItem("playOrder") ?? "all";
+    const searchType = localStorage.getItem("searchType") ?? "all";
+    const playOrder = localStorage.getItem("playOrder") ?? "sequential";
 
     // queue
     const queueOrder = localStorage.getItem("queueOrder");
@@ -42,75 +84,68 @@ $().ready(function() {
     const trimmed = Math.max(0, queue.length - QUEUE_MAX);
     queue = queue.slice(trimmed);
 
-    playStatus = playOrder === null ? "sequential" : playOrder;
-    currentSong = lastSong === null ? -1 : lastSong;
+    playStatus = playOrder;
     queueIndex = queueIndex_ === null ? 0 : Math.max(0, Number(queueIndex_) - trimmed);
 
     saveQueue();
-    renderQueue();
-    queue.forEach(fetchQueueMeta); // only fetches ids we don't already have cached
-    
-    volume.val(lastGain);
-    audio.volume = lastGain / 100;
-    audio.currentTime = lastTs;
+    renderQueue(); // only fetches meta for ids we don't already have cached
 
-    if (lastSong !== null)
+    volume.value = lastGain;
+    audio.volume = lastGain / 100;
+
+    if (lastSong >= 0)
     {
+        resumeAt = lastTs;
         loadSong(lastSong, false, true);
     }
 
-    // set & trigger
-    console.log(playOrder)
-    console.log(searchType)
-    console.log(searchTerm)
-    $('.playSequenceJs').val(playOrder).trigger("input");
-    $('.searchTypeJs').val(searchType).trigger("input");
-    $('.searchQueryJs').val(searchTerm).trigger("input");
+    // set
+    document.querySelector('.playSequenceJs').value = playOrder;
+    document.querySelector('.searchTypeJs').value = searchType;
+    document.querySelector('.searchQueryJs').value = searchTerm;
 
-    $('.dynamic').each(function(i, obj) {
-        searchDynamic()
+    searchDynamic();
 
-        console.log(pageStates)
-    });
-    
-    $('.playSequenceJs').on('input', function(e) {
-        console.log(e);
-        playStatus = $(this).val();
+    document.querySelector('.playSequenceJs').addEventListener('input', function() {
+        playStatus = this.value;
         localStorage.setItem("playOrder", playStatus);
-    })
-
-    $('.searchTypeJs').on('input', function(e) {
-        console.log('search type changed');
-        localStorage.setItem("searchType", $(this).val());
-        searchDynamic()
-    })
-
-    // https://stackoverflow.com/questions/17384218/jquery-input-event
-    $('.searchQueryJs').on('propertychange input', function (e) {
-        var valueChanged = false;
-
-        if (e.type=='propertychange') {
-            valueChanged = e.originalEvent.propertyName=='value';
-        } else {
-            valueChanged = true;
-        }
-        if (valueChanged) {
-            localStorage.setItem("searchTerm", $(this).val());
-            searchDynamic()
-        }
     });
+
+    document.querySelector('.searchTypeJs').addEventListener('input', function() {
+        localStorage.setItem("searchType", this.value);
+        searchDynamic();
+    });
+
+    document.querySelector('.searchQueryJs').addEventListener('input', function() {
+        localStorage.setItem("searchTerm", this.value);
+        searchDynamic();
+    });
+
+    // the search box is a <form>, don't let enter reload the page
+    document.querySelector('.searchJs').addEventListener('submit', e => e.preventDefault());
+
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('play', () => { play() });
+        navigator.mediaSession.setActionHandler('pause', () => { pause() });
+        navigator.mediaSession.setActionHandler('stop', () => { pause() });
+        navigator.mediaSession.setActionHandler('seekforward', (details) => { audio.currentTime += details.seekOffset ?? 10 });
+        navigator.mediaSession.setActionHandler('seekbackward', (details) => { audio.currentTime -= details.seekOffset ?? 10 });
+        navigator.mediaSession.setActionHandler('seekto', (details) => { audio.currentTime = details.seekTime });
+        navigator.mediaSession.setActionHandler('previoustrack', () => { triggerPreviousSong() });
+        navigator.mediaSession.setActionHandler('nexttrack', () => { triggerNextSong() });
+    }
 
     // spectrum
 
-    // audio source
-    const audioEl = $('.audio_js')[0];
+    // only the songs page has somewhere to put it
+    const container = document.querySelector('#audio-container');
+    if (!container) return;
 
     // instantiate analyzer
-    console.log(AudioMotionAnalyzer)
     const audioMotion = new AudioMotionAnalyzer (
-    $('#audio-container')[0],
+    container,
     {
-        source: audioEl,
+        source: audio,
         height: 100,
         // you can set other options below - check the docs!
         mode: 3,
@@ -126,25 +161,25 @@ $().ready(function() {
     );
 
     // display module version
-    document.getElementById('version').innerText = `v${AudioMotionAnalyzer.version}`;
+    const version = document.getElementById('version');
+    if (version) version.innerText = `v${AudioMotionAnalyzer.version}`;
 
     // play stream
-    document.getElementById('live').addEventListener( 'click', () => {
-    audioEl.src = 'https://icecast2.ufpel.edu.br/live';
-    audioEl.play();
+    document.getElementById('live')?.addEventListener( 'click', () => {
+    audio.src = 'https://icecast2.ufpel.edu.br/live';
+    audio.play();
     });
 
     // file upload
-    document.getElementById('upload').addEventListener( 'change', e => {
+    document.getElementById('upload')?.addEventListener( 'change', e => {
         const fileBlob = e.target.files[0];
 
         if ( fileBlob ) {
-            audioEl.src = URL.createObjectURL( fileBlob );
-            audioEl.play();
+            audio.src = URL.createObjectURL( fileBlob );
+            audio.play();
         }
     });
-    
-})
+});
 
 function pageOf(href) {
     return Number(new URL(href).searchParams.get('page')) || 1;
@@ -152,25 +187,25 @@ function pageOf(href) {
 
 
 function goToAdjacentPage(direction, onLoaded) {
-    const sel = $('.pagination-dynamic .selected');
-    const links = $('.pagination-dynamic a.passthrough');
+    const sel = document.querySelector('.pagination-dynamic .selected');
+    const links = [...document.querySelectorAll('.pagination-dynamic a.passthrough')];
 
-    if (!sel.length || !links.length) return false;
+    if (!sel || !links.length) return false;
 
-    const current = Number(sel.text().trim());
+    const current = Number(sel.textContent.trim());
     const target = current + direction;
 
-    const max = Math.max(current, ...links.map(function() { return pageOf(this.href); }).get());
+    const max = Math.max(current, ...links.map(a => pageOf(a.href)));
     if (target < 1 || target > max) return false;
 
     afterLoad = onLoaded;
 
-    const link = links.filter(function() { return pageOf(this.href) === target; }).first();
+    const link = links.find(a => pageOf(a.href) === target);
 
-    if (link.length) {
-        link.trigger('click'); 
+    if (link) {
+        link.click();
     } else {
-        const url = new URL(links.first().attr('href'));
+        const url = new URL(links[0].href);
         url.searchParams.set('page', target);
         url.pathname = '/d/songs';
         loadDynamic(url, 'songs');
@@ -179,9 +214,9 @@ function goToAdjacentPage(direction, onLoaded) {
 }
 
 function playEdgeRow(first) {
-    const rows = $('.songRow');
+    const rows = document.querySelectorAll('.songRow');
     if (!rows.length) return;
-    loadSong((first ? rows.first() : rows.last()).data('id'));
+    loadSong((first ? rows[0] : rows[rows.length - 1]).dataset.id);
 }
 
 function saveQueue() {
@@ -211,61 +246,104 @@ function cacheQueueMeta(id, res) {
     };
 }
 
-function fetchQueueMeta(id) {
-    if (queueMeta[id]) return;
+async function fetchQueueMeta(id) {
+    // renderQueue calls this a lot, so don't ask twice for the same id
+    if (queueMeta[id] || queueMetaRequested.has(id)) return;
+    queueMetaRequested.add(id);
 
-    $.ajax({
-        url: baseUrl + '/meta/json/' + id,
-        type: 'GET',
-        dataType: 'json',
-        success: function(res) {
-            cacheQueueMeta(id, res);
-            saveQueue();
-            renderQueue();
-        }
-    });
+    try {
+        const res = await getJson(baseUrl + '/meta/json/' + id);
+        cacheQueueMeta(id, res);
+        saveQueue();
+        renderQueue();
+    } catch (err) {
+        console.error('failed to get queue meta for', id, err);
+    }
 }
 
 function renderQueue() {
-    const tpl = $('.queue-template');
-    $('.queue-row').remove();
+    const tpl = document.querySelector('.queue-template');
+    document.querySelectorAll('.queue-row').forEach(row => row.remove());
+
+    // queue table only exists on the songs page
+    if (!tpl) return;
 
     queue.forEach(function(id, i) {
+        fetchQueueMeta(id);
+
         const meta = queueMeta[id];
-        const row = tpl.clone()
-            .removeClass('queue-template')
-            .addClass('queue-row')
-            .attr('data-index', i)
-            .attr('data-id', id);
+        const row = tpl.cloneNode(true);
+        row.classList.remove('queue-template');
+        row.classList.add('queue-row');
+        row.dataset.index = i;
+        row.dataset.id = id;
 
-        row.find('td.author').html(meta?.artist ?? '<i class="sub">unknown</i>');
-        row.find('td.title').html(meta?.title ?? '<i class="sub">loading...</i>');
+        setTextOr(row.querySelector('td.author'), meta?.artist, 'unknown', 'sub');
+        setTextOr(row.querySelector('td.title'), meta?.title, 'loading...', 'sub');
 
-        const playCell = row.find('td.play');
-        const link = playCell.find('a, button').first();
-        if (link.length) {
-            link.attr('data-id', id).addClass('queue_play_js');
-        } else {
-            playCell.html('<a href="#" class="queue_play_js" data-id="' + id + '">&#9654;</a>');
+        const playCell = row.querySelector('td.play');
+        let link = playCell.querySelector('a, button');
+        if (!link) {
+            link = document.createElement('a');
+            link.href = '#';
+            link.innerHTML = '&#9654;';
+            playCell.replaceChildren(link);
         }
+        link.dataset.id = id;
+        link.classList.add('queue_play_js');
 
-        if (i === queueIndex) row.addClass('playing');
+        if (i === queueIndex) row.classList.add('playing');
 
-        tpl.parent().append(row);
+        tpl.parentElement.append(row);
     });
 }
 
-$(document).on('click', '.queue_play_js', function(e) {
-    e.preventDefault();
-    const i = Number($(this).closest('.queue-row').data('index'));
+onClick('.queue_play_js', function(el) {
+    const i = Number(el.closest('.queue-row').dataset.index);
     queueIndex = i;
     saveQueue();
     loadSong(queue[i], false);
 });
 
+// these all live inside the dynamic table, so they're delegated instead of
+// rebound every time loadDynamic runs (that used to stack up handlers on .passthrough)
+onClick('.playSong_js', function(el) {
+    loadSong(el.dataset.id);
+});
+
+onClick('.passthrough', function(el) {
+    // check if page
+    let url = new URL(el.href);
+    url.pathname = '/d/songs'
+
+    loadDynamic(url, 'songs');
+});
+
+onClick('.js_searchAlbum', function(el) {
+    setSearch(el.dataset.term, 'album');
+});
+
+onClick('.js_searchArtist', function(el) {
+    setSearch(el.dataset.term, 'author');
+});
+
+function setSearch(term, type) {
+    const query = document.querySelector('.searchQueryJs');
+    const searchType = document.querySelector('.searchTypeJs');
+
+    query.value = term;
+    searchType.value = type;
+    localStorage.setItem("searchTerm", term);
+    localStorage.setItem("searchType", type);
+    searchDynamic();
+}
+
 function searchDynamic() {
-    let q = ($('.searchQueryJs').val());
-    let searchType = ($('.searchTypeJs').val());
+    // nothing to put results in on other pages
+    if (!document.querySelector('.dynamic')) return;
+
+    let q = document.querySelector('.searchQueryJs').value;
+    let searchType = document.querySelector('.searchTypeJs').value;
 
     let url = new URL(baseUrl + '/d/songs')
     url.searchParams.append('q', q);
@@ -274,78 +352,40 @@ function searchDynamic() {
     loadDynamic(url, 'songs')
 }
 
-function loadDynamic(url, type) {
-    $.ajax({
-        url: url,
-        type: 'GET',
-        dataType: 'html',
-        success: function(res) {
-            // console.log(res);
-            // grab pagination (if it exists) and put
-            // it in the thing
+async function loadDynamic(url, type) {
+    // typing fast fires a bunch of these, only the latest one should win
+    dynamicRequest?.abort();
+    const request = dynamicRequest = new AbortController();
 
-            $('.dynamic[data-name="' + type + '"]').html(res);
-            $('.songRow[data-id="' + currentSong + '"]').addClass('playing');
+    let res;
+    try {
+        res = await getText(url, { signal: request.signal });
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('loadDynamic failed', err);
+        afterLoad = null;
+        return;
+    }
 
-            $('.pagination-dynamic').html('');
-            let pag = $('.pagination-default').detach();
-            $('.pagination-dynamic').append(pag);
+    // grab pagination (if it exists) and put
+    // it in the thing
 
-            $('.playSong_js').on('click', function(event) {
-                event.preventDefault();
-                
-                let id = $(this).data('id');
-                loadSong(id);
-            });
+    document.querySelector('.dynamic[data-name="' + type + '"]').innerHTML = res;
+    document.querySelector('.songRow[data-id="' + currentSong + '"]')?.classList.add('playing');
 
-            $('.passthrough').each(function(i, obj) {
-                $(this).on('click', function(event) {
-                    event.preventDefault();
+    const pagination = document.querySelector('.pagination-dynamic');
+    pagination.replaceChildren();
+    pagination.append(...document.querySelectorAll('.pagination-default'));
 
-                    let href = ($(this).attr('href'));
-
-                    // check if page
-                    let url = new URL(href);
-                    let searchParams = new URLSearchParams(url.search)
-                
-                    console.log(searchParams.has('page')) 
-                    console.log(searchParams) 
-
-                    url.pathname = '/d/songs'
-
-                    loadDynamic(url, 'songs');
-                })
-            });
-
-            $('.js_searchAlbum').on('click', function(event) {
-                event.preventDefault();
-
-                $('.searchQueryJs').val($(this).data('term')).trigger('input')
-                $('.searchTypeJs').val('album').trigger('input')
-            })
-
-            $('.js_searchArtist').on('click', function(event) {
-                event.preventDefault();
-
-                $('.searchQueryJs').val($(this).data('term')).trigger('input')
-                $('.searchTypeJs').val('author').trigger('input')
-            })
-
-
-            if (afterLoad) {
-                const cb = afterLoad;
-                afterLoad = null;
-                cb();
-            }
-        },
-        error: function() {
-            afterLoad = null;
-        }
-    });
+    if (afterLoad) {
+        const cb = afterLoad;
+        afterLoad = null;
+        cb();
+    }
 }
 
-String.prototype.toHHMMSS = function () {
-    var sec_num = parseInt(this, 10); // don't forget the second param
+function toHHMMSS(secs) {
+    var sec_num = parseInt(secs, 10); // don't forget the second param
     var hours   = Math.floor(sec_num / 3600);
     var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
     var seconds = sec_num - (hours * 3600) - (minutes * 60);
@@ -356,181 +396,148 @@ String.prototype.toHHMMSS = function () {
     return hours+':'+minutes+':'+seconds;
 }
 
-function loadSong(id, shouldPush = true, resume = false) {
+function setLyrics(text) {
+    lrc?.pause();
+    currentLyricsCache = text;
+
+    lrc = new Lyric({
+        onPlay: function (line, text) {
+            // console.log(lrc.lines[lrc.curLineNum].time - lrc.offset - dom_audio.currentTime * 1000)
+            // dom_lyric.innerHTML = text + '<br>' + lrcLines[line].extendedLyrics.join('<br>')
+
+            setHeaderText(lrcLines[line].text);
+        },
+        onSetLyric: function (lines) {
+            lrcLines = lines
+        }
+    })
+    // lrc.setLyric(b64DecodeUnicode(encodeLrc), b64DecodeUnicode(encodeLrc))
+    lrc.setLyric(text)
+
+    // lyrics can show up after the song already started
+    if (!audio.paused) lrc.play(audio.currentTime * 1000);
+}
+
+function clearLyrics() {
+    lrc?.pause();
+    lrc = null;
+    currentLyricsCache = "";
+    setHeaderText('songs : cmusic');
+}
+
+async function loadSong(id, shouldPush = true, resume = false) {
     g_shouldPush = shouldPush;
     id = Number(id);
 
-    console.warn('loadSong:', id);
-    console.warn('queue before:', queue);
-    console.warn('queueIndex before:', queueIndex);
-
     currentSong = id;
-
-    console.warn('queue after:', queue);
-    console.warn('queueIndex after:', queueIndex);
 
     let url = baseUrl + '/meta/file/' + id;
     let json = baseUrl + '/meta/json/' + id;
 
-    $.ajax({
-        url: baseUrl + '/plugins/hooks/play/' + id + "?resume=" + (resume ? "true" : "false"),
-        type: 'POST',
-        dataType: 'json',
-        success: function(res) { console.log(res); }
+    fetch(baseUrl + '/plugins/hooks/play/' + id + "?resume=" + (resume ? "true" : "false"), { method: 'POST' })
+        .catch(err => console.error('play hook failed', err));
+
+    let res;
+    try {
+        res = await getJson(json);
+    } catch (err) {
+        console.error('failed to get metadata for', id, err);
+        return;
+    }
+
+    // someone clicked another song while we were waiting
+    if (id !== currentSong) return;
+
+    document.querySelectorAll('.meta-row').forEach(function(el) {
+        setTextOr(el, null, 'unknown', 'sub');
     });
+
+    cacheQueueMeta(id, res);
+    saveQueue();
+    renderQueue();
+
+    for (const [key, value] of Object.entries(res.metadata)) {
+        const el = document.querySelector('td[data-row="' + key + '"]');
+        if (el) el.textContent = value;
+    }
+
+    playSong(res, url, id, shouldPush);
+    play()
+
+    // lyrics
 
     // grab lyrics. does it exist? if not, it returns a 404.
     // but ALSO metadata can contain lyrics
-    $.ajax({
-        url: baseUrl + '/meta/lyrics/' + id,
-        type: 'GET',
-        success: function(res) { 
-            console.log(res);
-            currentLyricsCache = res;
+    if (res.metadata.lyrics != null) {
+        setLyrics(res.metadata.lyrics);
+        return;
+    }
 
-            lrc = new Lyric({
-                onPlay: function (line, text) {
-                    console.log(lrcLines[line].text + '\n' + lrcLines[line].extendedLyrics.join('\n'))
-                    // console.log(lrc.lines[lrc.curLineNum].time - lrc.offset - dom_audio.currentTime * 1000)
-                    // dom_lyric.innerHTML = text + '<br>' + lrcLines[line].extendedLyrics.join('<br>')
-                
-                    $('.header-top-text').text(lrcLines[line].text);
-                },
-                onSetLyric: function (lines) {
-                    lrcLines = lines
-                    console.log(lines)
-                }
-            })
-            // lrc.setLyric(b64DecodeUnicode(encodeLrc), b64DecodeUnicode(encodeLrc))
-            lrc.setLyric(res)
-
-            /*
-            dom_audio.onplay = function () {
-                lrc.play(dom_audio.currentTime * 1000)
-            }
-            dom_audio.onpause = function () {
-                lrc.pause()
-            }*/
-        },
-        error: function(res) {
-            $('.header-top-text').text('songs : cmusic');
-            console.log('failed to get currentLyricsCache');
-            currentLyricsCache = "";
-        }
-    });
-
-    $.ajax({
-        url: json,
-        type: 'GET',
-        dataType: 'json',
-        success: function(res) {
-            $('.meta-row').each(function() {
-                $(this).html('<i class="sub">unknown</i>');
-            })
-
-            console.log(res.metadata);
-
-            cacheQueueMeta(id, res);
-            saveQueue();
-            renderQueue();
-
-            for (const [key, value] of Object.entries(res.metadata)) {
-                $('td[data-row="' + key + '"]').text(value);
-            }
-
-            // lyrics
-
-            if (res.metadata.lyrics !== null) {
-                currentLyricsCache = res.metadata.lyrics;
-
-                lrc = new Lyric({
-                    onPlay: function (line, text) {
-                        console.log(lrcLines[line].text + '\n' + lrcLines[line].extendedLyrics.join('\n'))
-                        // console.log(lrc.lines[lrc.curLineNum].time - lrc.offset - dom_audio.currentTime * 1000)
-                        // dom_lyric.innerHTML = text + '<br>' + lrcLines[line].extendedLyrics.join('<br>')
-                    
-                        $('.header-top-text').text(lrcLines[line].text);
-                    },
-                    onSetLyric: function (lines) {
-                        lrcLines = lines
-                        console.log(lines)
-                    }
-                })
-                // lrc.setLyric(b64DecodeUnicode(encodeLrc), b64DecodeUnicode(encodeLrc))
-                lrc.setLyric(res.metadata.lyrics)
-            } else {
-                $('.header-top-text').text('songs : cmusic');
-            }
-
-            playSong(res, url, id, shouldPush);
-            play()
-        }
-    });
+    clearLyrics();
+    try {
+        const lyrics = await getText(baseUrl + '/meta/lyrics/' + id);
+        if (id === currentSong) setLyrics(lyrics);
+    } catch (err) {
+        if (id === currentSong) clearLyrics();
+    }
 }
 
 function playSong(meta, url, id, shouldPush = false) {
     currentSong = id;
 
-    $('.songRow').removeClass('playing');
+    document.querySelectorAll('.songRow.playing').forEach(row => row.classList.remove('playing'));
+    document.querySelector('.songRow[data-id="' + id + '"]')?.classList.add('playing');
 
-    const row = $('.songRow[data-id="' + id + '"]');
-    row.addClass('playing');
-
-    const audio = $('.audio_js')[0];
     audio.src = url;
     audio.load();
-    audio.play();
 
-    $('#seek').attr('max', Math.floor(meta.metadata.duration_seconds));
+    if (resumeAt) {
+        audio.currentTime = resumeAt;
+        resumeAt = 0;
+    }
 
-    $('.artist_js').html(meta.metadata.artist ?? "<i>unknown</i>");
-    $('.title_js').html(meta.metadata.title ?? "<i>" + meta.metadata.filename + "</i>");
+    seek.max = Math.floor(meta.metadata.duration_seconds);
 
-    $('.logo').attr('src', baseUrl + '/meta/cover/' + id);
+    setTextOr(document.querySelector('.artist_js'), meta.metadata.artist, 'unknown');
+    setTextOr(document.querySelector('.title_js'), meta.metadata.title, meta.metadata.filename);
+
+    document.querySelector('.logo').src = baseUrl + '/meta/cover/' + id;
 
     if ('mediaSession' in navigator) {
 
     navigator.mediaSession.metadata = new MediaMetadata({
         title: meta.metadata.title ?? "unknown title",
         artist: meta.metadata.artist ?? "unknown artist",
-        album: meta.metadata.album ?? "unknown title",
+        album: meta.metadata.album ?? "unknown album",
         artwork: [
         { src: baseUrl + '/meta/cover/' + id, sizes: '512x512', type: 'image/png' },
         { src: baseUrl + '/meta/cover/' + id, sizes: '1024x1024', type: 'image/png' },
         ]
     });
     }
-
-    navigator.mediaSession.setActionHandler('play', () => { $('.play_js').trigger('click') });
-    navigator.mediaSession.setActionHandler('pause', () => { $('.pause_js').trigger('click') });
-    navigator.mediaSession.setActionHandler('stop', () => { $('.pause_js').trigger('click') });
-    navigator.mediaSession.setActionHandler('seekforward', () => { /* Code excerpted. */ });
-    navigator.mediaSession.setActionHandler('seekto', () => { /* Code excerpted. */ });
-    navigator.mediaSession.setActionHandler('previoustrack', () => { triggerPreviousSong() });
-    navigator.mediaSession.setActionHandler('nexttrack', () => { triggerNextSong() });
 }
 
-const audio = $('.audio_js')[0];
-const seek = $('#seek');
-
 audio.addEventListener('timeupdate', () => {
-    seek.val(audio.currentTime);
+    seek.value = audio.currentTime;
     localStorage.setItem("lastTimestamp", audio.currentTime);
     localStorage.setItem("lastSong", currentSong);
-    $('.timestamp_js').text(audio.currentTime.toString().toHHMMSS())
+    document.querySelector('.timestamp_js').textContent = toHHMMSS(audio.currentTime);
 });
 
-seek.on('input', function () {
-    if (currentLyricsCache != "") {
-        lrc.play(audio.currentTime * 1000)
-    }
-    console.log(audio.currentTime * 1000)
+seek.addEventListener('input', function () {
     audio.currentTime = this.value;
+});
+
+// keep the lyrics in sync with whatever the audio element is doing
+audio.addEventListener('playing', () => { lrc?.play(audio.currentTime * 1000) });
+audio.addEventListener('pause', () => { lrc?.pause() });
+audio.addEventListener('seeked', () => {
+    if (!audio.paused) lrc?.play(audio.currentTime * 1000);
 });
 
 audio.addEventListener('loadedmetadata', () => {
     renderQueue();
-    seek.attr('max', audio.duration);
+    seek.max = audio.duration;
 });
 
 function getRandomArbitrary(min, max) {
@@ -545,7 +552,6 @@ function printQueuePosition() {
 }
 
 function triggerPreviousSong() {
-    console.log('GOING BACK', queueIndex, queue)
     // go back into the queue, if there's no more songs before
     if (queueIndex > 0)
     {
@@ -553,15 +559,22 @@ function triggerPreviousSong() {
         localStorage.setItem("queueIndex", queueIndex);
         loadSong(queue[queueIndex], false);
     }
-    else
+    else if (queue.length)
     {
         loadSong(queue[0], false);
     }
 }
 
-function triggerNextSong() {
-    console.log('GOING NEXT', queueIndex, queue)
+// next/previous .songRow after `row`, skipping the album header rows
+function siblingRow(row, forward) {
+    let el = forward ? row.nextElementSibling : row.previousElementSibling;
+    while (el && !el.classList.contains('songRow')) {
+        el = forward ? el.nextElementSibling : el.previousElementSibling;
+    }
+    return el;
+}
 
+async function triggerNextSong() {
     // check, does the queue have a song that's already in front??
     if (queueIndex + 1 < queue.length) {
         queueIndex++;
@@ -570,41 +583,37 @@ function triggerNextSong() {
     }
 
     if (playStatus == "sequential") {
-        let row = $('.songRow[data-id="' + currentSong + '"]');
-        if (!row.length) return;
+        let row = document.querySelector('.songRow[data-id="' + currentSong + '"]');
+        if (!row) return;
 
-        let trNext = row.nextAll('.songRow').first();
+        let trNext = siblingRow(row, true);
 
-        if (trNext.length) {
-            loadSong(trNext.data('id'));
+        if (trNext) {
+            loadSong(trNext.dataset.id);
         } else {
             goToAdjacentPage(+1, function() { playEdgeRow(true); });
         }
     } else if (playStatus == "sequentialUp") {
-        let row = $('.songRow[data-id="' + currentSong + '"]');
-        if (!row.length) return;
+        let row = document.querySelector('.songRow[data-id="' + currentSong + '"]');
+        if (!row) return;
 
-        let trPrev = row.prevAll('.songRow').first();
+        let trPrev = siblingRow(row, false);
 
-        if (trPrev.length) {
-            loadSong(trPrev.data('id'));
+        if (trPrev) {
+            loadSong(trPrev.dataset.id);
         } else {
             goToAdjacentPage(-1, function() { playEdgeRow(false); });
         }
     } else if (playStatus == "shuffle") {
-        $.ajax({
-            url: baseUrl + '/meta/song_count',
-            type: 'GET',
-            dataType: 'json',
-            success: function(res) {
-                console.log(res, 'res result');
-                let nextSong = Math.floor(
-                    Math.random() * res.files
-                );
-                console.log(nextSong, "random next song");
-                loadSong(nextSong);
-            }
-        });
+        try {
+            const res = await getJson(baseUrl + '/meta/song_count');
+            let nextSong = Math.floor(
+                Math.random() * res.files
+            );
+            loadSong(nextSong);
+        } catch (err) {
+            console.error('failed to get song count', err);
+        }
     } else {
         let nextSong = Number(currentSong) + 1;
         loadSong(nextSong);
@@ -628,14 +637,13 @@ audio.addEventListener('loadeddata', (event) => {
 
 audio.addEventListener('canplaythrough', (event) => {
     renderQueue();
-    console.log("canplaythrough called")
 })
 
 audio.addEventListener('error', function failed(e) {
     // audio playback failed - show a message saying why
-    // to get the source of the audio element use $(this).src
+    // to get the source of the audio element use this.currentSrc
 
-    console.error($(this).src)
+    console.error(this.currentSrc)
 
     switch (e.target.error.code) {
         case e.target.error.MEDIA_ERR_ABORTED:
@@ -661,38 +669,21 @@ audio.addEventListener('error', function failed(e) {
     }
 }, true);
 
-$('#volume').on('input', function () {
-    localStorage.setItem("lastGain", $(this).val());
-    $('.audio_js')[0].volume = $(this).val() / 100;
-});
-
-$('.play_js').on('click', function() {
-    play()
+volume.addEventListener('input', function () {
+    localStorage.setItem("lastGain", this.value);
+    audio.volume = this.value / 100;
 });
 
 function play() {
-    let audio = $('.audio_js')[0];
-    audio.play();
-    if (currentLyricsCache != "") {
-        console.log('playing with lyrics')
-        lrc.play(audio.currentTime * 1000)
-    }
+    // browsers block autoplay until you've clicked something, that's fine
+    audio.play().catch(err => console.log('play() blocked:', err.message));
 }
 
-$('.pause_js').on('click', function() {
-    let audio = $('.audio_js')[0];
+function pause() {
     audio.pause();
-    if (currentLyricsCache != "") {
-        // console.log('playing with lyrics')
-        lrc.pause()
-    }
-});
+}
 
-$('.next_js').on('click', function() {
-    triggerNextSong();
-})
-
-$('.previous_js').on('click', function() {
-    triggerPreviousSong();
-})
-
+document.querySelector('.play_js').addEventListener('click', play);
+document.querySelector('.pause_js').addEventListener('click', pause);
+document.querySelector('.next_js').addEventListener('click', triggerNextSong);
+document.querySelector('.previous_js').addEventListener('click', triggerPreviousSong);
