@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchType = localStorage.getItem("searchType") ?? "all";
     const playOrder = localStorage.getItem("playOrder") ?? "sequential";
 
+    // selected genre
+    const selectedGenre = localStorage.getItem("selectedGenre") ?? "all";
+
     // queue
     const queueOrder = localStorage.getItem("queueOrder");
     const queueIndex_ = localStorage.getItem("queueIndex");
@@ -103,6 +106,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.playSequenceJs').value = playOrder;
     document.querySelector('.searchTypeJs').value = searchType;
     document.querySelector('.searchQueryJs').value = searchTerm;
+    console.log(`.genreselect[data-genre="${selectedGenre}"]`);
+    console.log(document.querySelector(`.genreselect[data-genre="${selectedGenre}"]`));
 
     searchDynamic();
 
@@ -160,25 +165,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     );
 
-    // display module version
-    const version = document.getElementById('version');
-    if (version) version.innerText = `v${AudioMotionAnalyzer.version}`;
-
-    // play stream
-    document.getElementById('live')?.addEventListener( 'click', () => {
-    audio.src = 'https://icecast2.ufpel.edu.br/live';
-    audio.play();
-    });
-
-    // file upload
-    document.getElementById('upload')?.addEventListener( 'change', e => {
-        const fileBlob = e.target.files[0];
-
-        if ( fileBlob ) {
-            audio.src = URL.createObjectURL( fileBlob );
-            audio.play();
-        }
-    });
+    document.querySelector(`.genreselect[data-genre="${selectedGenre}"]`)?.click();
+    
 });
 
 function pageOf(href) {
@@ -319,6 +307,27 @@ onClick('.passthrough', function(el) {
     loadDynamic(url, 'songs');
 });
 
+onClick('.genreselect', function(el) {
+    // check if page
+
+    const slides = document.getElementsByClassName("genreselect");
+    for (let i = 0; i < slides.length; i++) {
+        slides.item(i).classList.remove('selected');
+        slides.item(i).textContent = "select";
+        // console.log(slides.item(i));
+    }
+
+    el.classList.add('selected');
+    el.textContent = "selected";
+    localStorage.setItem("selectedGenre", el.dataset.genre);
+    // genre = document.querySelector('.genreselect .selected').dataset.genre;
+
+    let url = new URL(el.href);
+    url.pathname = '/d/songs'
+
+    loadDynamic(url, 'songs');
+});
+
 onClick('.js_searchAlbum', function(el) {
     setSearch(el.dataset.term, 'album');
 });
@@ -339,15 +348,25 @@ function setSearch(term, type) {
 }
 
 function searchDynamic() {
+    console.log("searchDynamic called")
+
     // nothing to put results in on other pages
     if (!document.querySelector('.dynamic')) return;
 
     let q = document.querySelector('.searchQueryJs').value;
     let searchType = document.querySelector('.searchTypeJs').value;
+    let genre = "";
+    
+    if (document.querySelector('.genreselect .selected') !== null)
+    {
+        genre = document.querySelector('.genreselect .selected').dataset.genre;
+    }
+    
 
     let url = new URL(baseUrl + '/d/songs')
     url.searchParams.append('q', q);
     url.searchParams.append('t', searchType);
+    url.searchParams.append('genre', genre);
 
     loadDynamic(url, 'songs')
 }
@@ -442,6 +461,7 @@ async function loadSong(id, shouldPush = true, resume = false) {
         res = await getJson(json);
     } catch (err) {
         console.error('failed to get metadata for', id, err);
+        triggerNextSong();
         return;
     }
 
@@ -606,10 +626,27 @@ async function triggerNextSong() {
         }
     } else if (playStatus == "shuffle") {
         try {
-            const res = await getJson(baseUrl + '/meta/song_count');
-            let nextSong = Math.floor(
-                Math.random() * res.files
-            );
+            // todo: passthrough everything
+            let q = document.querySelector('.searchQueryJs').value;
+            let searchType = document.querySelector('.searchTypeJs').value;
+            let genre = "";
+            
+            console.log(document.querySelector('.genreselect.selected'))
+            if (document.querySelector('.genreselect.selected') !== null)
+            {
+                console.log("document.querySelector('.genreselect.selected') !== null")
+                genre = document.querySelector('.genreselect.selected').dataset.genre;
+            }
+
+            if (genre === 'all') genre = '';
+
+            const url = new URL(baseUrl + '/meta/song_count');
+            url.searchParams.append('q', q);
+            url.searchParams.append('t', searchType);
+            url.searchParams.append('genre', genre);
+
+            const res = await getJson(url);
+            let nextSong = res.files;
             loadSong(nextSong);
         } catch (err) {
             console.error('failed to get song count', err);

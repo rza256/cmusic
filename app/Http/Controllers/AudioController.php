@@ -17,7 +17,61 @@ class AudioController extends Controller {
 
         $songs = $songs->paginate(100);
 
-        return view('songs', ['songs' => $songs]);
+        $pool = File::whereNotNull('metadata->genre')
+            ->get()
+            ->pluck('metadata.genre')
+            ->countBy()
+            ->sortDesc();
+
+        return view('songs', ['songs' => $songs, 'genres' => $pool]);
+    }
+
+    public function songCount(Request $request) {
+        $songs = File::query();
+
+        // does the user want only a specific album / artist
+        !empty($request->input('album')) ? $songs->where('album', $request->input('album')) : '';
+        !empty($request->input('artist')) ? $songs->where('artist', $request->input('artist')) : '';
+
+        if (!empty($request->input('q')) && !empty($request->input('t')))
+        {
+            switch ($request->input('t'))
+            {
+                case "title":
+                    $songs->where('title', 'LIKE', '%' . $request->input('q') . '%');
+                    break;
+                case "author":
+                    $songs->where('artist', 'LIKE', '%' . $request->input('q') . '%');
+                    break;
+                case "album":
+                    $songs->where('album', 'LIKE', '%' . $request->input('q') . '%');
+                    break;
+                case "filename":
+                    $songs->where('file_path', 'LIKE', '%' . $request->input('q') . '%');
+                    break;
+                default:
+                    $songs->where('metadata', 'LIKE', '%' . $request->input('q') . '%');
+
+                    // should just be all
+                    // $songs->where('artist', $request->input('artist'));
+                    // APPARENTLY you can't do LIKE across different columns?
+                    // so we settle with metadata
+                    break;
+            };
+        }
+
+        if (!empty($request->input('genre')))
+        {
+            $songs->where('metadata->genre', 'LIKE', '%' . $request->input('genre') . '%');
+        }
+
+        if (!empty($request->input('fileType')) && $request->input('fileType') == 'transcodes')
+        {
+            $songs = $songs->whereHas('transcode');
+        }
+
+        
+        return response()->json((object)['files' => $songs->inRandomOrder()->first()->id]);
     }
 
     public function dynamic(Request $request, string $type)
@@ -70,6 +124,11 @@ class AudioController extends Controller {
                 };
             }
 
+            if (!empty($request->input('genre')))
+            {
+                $songs->where('metadata->genre', 'LIKE', '%' . $request->input('genre') . '%');
+            }
+
             if (!empty($request->input('fileType')) && $request->input('fileType') == 'transcodes')
             {
                 $songs = $songs->whereHas('transcode');
@@ -108,6 +167,15 @@ class AudioController extends Controller {
     public function json(Request $request, int $id)
     {
         $file = File::where('id', $id)->firstOrFail();
+        // we should check if it even exists anymore
+        if(!Storage::disk('music')->exists($file->file_path))
+        {
+            $file->delete();
+
+            // on js side itll play next song
+            return abort(404);
+        }
+
         return response()->json($file);
     }
 

@@ -17,6 +17,21 @@ h1,h2,h3,h4,h5 {
     display: inline-block;
 }
 
+.genrestable {
+    height: 300px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    display: block;
+}
+
+.genre .name {
+    width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+}
+
 @media screen and (max-width: 1024px) {
     .left-side {
         display: none !important;

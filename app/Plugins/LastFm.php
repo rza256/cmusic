@@ -198,8 +198,9 @@ class LastFm extends Plugin
             return;
         }
 
+        // start track.updateNowPlaying
         $params = [
-            'method' => 'track.scrobble',
+            'method' => 'track.updateNowPlaying',
             'api_key' => $apiKey,
             'sk' => $sk,
             'artist' => $file->artist,
@@ -231,6 +232,8 @@ class LastFm extends Plugin
         report('scrobbling: ' . $file->artist . ' - ' . $file->title);
 
         $scrobble = self::tryHttpPost('https://ws.audioscrobbler.com/2.0/', $bodyParams);
+
+
 
         if ($scrobble === null) {
             report(new \RuntimeException("Scrobble request failed for file {$file->id}"));
