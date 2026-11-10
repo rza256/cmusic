@@ -91,7 +91,7 @@ class AudioController extends Controller {
 
         if ($type == 'songs') {
             $songs = File::orderBy('album', 'desc')
-                ->orderBy('metadata->track_number', 'asc');
+                ->orderByRaw("CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.track_number')) AS UNSIGNED) ASC");
 
             // does the user want only a specific album / artist
             !empty($request->input('album')) ? $songs->where('album', $request->input('album')) : '';
@@ -135,6 +135,14 @@ class AudioController extends Controller {
             }
 
             $songs = $songs->paginate(100);
+
+            // start to order each album if possible:
+                /*
+            $songs->transform(function(File $song) {
+                $buff = $song; 
+                $buff->metadata['track_number'] = (int)$song->metadata['track_number'];
+                return $buff;
+            });*/
 
             $data = [
                 'songs' => $songs,
