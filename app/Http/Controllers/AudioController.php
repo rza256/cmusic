@@ -158,7 +158,15 @@ class AudioController extends Controller {
         $file = File::where('id', $id)->firstOrFail();
         if ($file->transcode)
         {
-            return response()->file(Storage::disk('transcodes')->path(pathinfo($file->file_path, PATHINFO_FILENAME) . ".ogg"));
+            // check if the transcode even exists
+            $path = "opus/" . $id . ".opus";
+            if (Storage::disk('transcodes')->exists($path)) {
+                return response()->file(Storage::disk('transcodes')->path($path));
+            }
+            else 
+            {
+                $file->transcode->delete();
+            }
         }
 
         return response()->file(Storage::disk('music')->path($file->file_path));

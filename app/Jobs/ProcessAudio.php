@@ -29,6 +29,17 @@ class ProcessAudio implements ShouldQueue
         $this->jobType = $jobType;
     }
 
+    private function utf8ize( $mixed ) {
+        if (is_array($mixed)) {
+            foreach ($mixed as $key => $value) {
+                $mixed[$key] = $this->utf8ize($value);
+            }
+        } elseif (is_string($mixed)) {
+            return mb_convert_encoding($mixed, "UTF-8", "UTF-8");
+        }
+        return $mixed;
+    }
+
     /**
      * Execute the job.
      */
@@ -63,7 +74,7 @@ class ProcessAudio implements ShouldQueue
         if ($jobExists)
         {
             report("jobExists");
-            return;
+            // return;
         }
 
 
@@ -120,9 +131,14 @@ class ProcessAudio implements ShouldQueue
             $metadata = $metadata->toArray(); // meta
             $raw_all = $audio->getRaw(); // 
             
-            $full = array_merge($metadata, $raw_all);
+            $full = array_merge($metadata, $this->utf8ize($raw_all));
 
             try {
+                //report(json_encode($metadata));
+                //report(gettype($raw_all));
+                //report(json_encode($this->utf8ize($raw_all)));
+                //report(json_encode($full));
+
                 $file = File::create([
                     'file_path' => $this->fileName,
                     'album' => $full['album'] ?? '',
@@ -150,24 +166,38 @@ class ProcessAudio implements ShouldQueue
 
         if ($this->jobType == JobType::TRANSCODE_AUDIO)
         {
+            report("\$this->jobType == JobType::TRANSCODE_AUDIO");    
+
             $file = File::where('file_path', $this->fileName)->first();
-            
-            if (!$file)
+
+            if (!$file) {
+                report("!\$file");    
                 return; // todo: handle properly
-            
+            }
+
+            $outPath = "opus/{$file->id}.opus";
+
+            $format = (new \App\Formats\Opus)
+                ->setAudioKiloBitrate(96)
+                ->setAudioChannels(2);
+
             FFMpeg::fromDisk('music')
                 ->open($this->fileName)
                 ->export()
                 ->toDisk('transcodes')
-                ->inFormat(new \FFMpeg\Format\Audio\Vorbis)
-                ->save(pathinfo($this->fileName, PATHINFO_FILENAME) . ".ogg");
-        
-            $tc = Transcode::create([
-                'file_id' => $file->id,
-                'file_name' => $file->file_path,
-                'file_size' => Storage::disk('transcodes')->size(pathinfo($this->fileName, PATHINFO_FILENAME) . ".ogg"),
-                'file_hash' => hash_file("xxh3", Storage::disk('transcodes')->path(pathinfo($this->fileName, PATHINFO_FILENAME) . ".ogg")),
-            ]);
+                ->inFormat($format)
+                ->save($outPath);
+
+            $disk = Storage::disk('transcodes');
+
+            $tc = Transcode::updateOrCreate(
+                ['file_id' => $file->id],
+                [
+                    'file_name' => $outPath,
+                    'file_size' => $disk->size($outPath),
+                    'file_hash' => hash_file('xxh3', $disk->path($outPath)),
+                ]
+            );
 
             $job->update([
                 'job_status' => 1,
